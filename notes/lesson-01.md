@@ -26,13 +26,3 @@
 ## 仍然不清楚的问题
 
 - 
-
---- 16-bit decode of the reset vector ---
-FFFFFFF0  EA5BE000F0        jmp word 0xf000:word 0xe05b
-FFFFFFF5  30362F32          xor [0x322f],dh
-FFFFFFF9  332F              xor bp,[bx]
-FFFFFFFB  3939              cmp [bx+di],di
-FFFFFFFD  00FC              add ah,bh
-FFFFFFFF  00                db 0x00
-
-我没看懂第一条指令的作用。 刚刚咨询学会了

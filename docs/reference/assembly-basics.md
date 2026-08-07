@@ -120,8 +120,8 @@ AL → I/O port 0xe9
 
 硬件与指令参考：
 
-- [Intel SDM Volume 1: Basic Architecture](https://cdrdv2-public.intel.com/922477/253665-092-sdm-vol-1.pdf)，Chapter 3
-- [Intel SDM Volume 2: Instruction Set Reference](https://cdrdv2-public.intel.com/922478/325383-092-sdm-vol-2abcd.pdf)，查找 `OUT`
+- [Intel SDM Volume 1: Basic Architecture](https://cdrdv2.intel.com/v1/dl/getContent/671436)，Chapter 3
+- [Intel SDM Volume 2: Instruction Set Reference](https://cdrdv2.intel.com/v1/dl/getContent/671110)，查找 `OUT`
 
 ## 6. 当前阶段的查阅顺序
 

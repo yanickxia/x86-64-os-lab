@@ -68,8 +68,8 @@ out immediate_port, al
 权威参考：
 
 - [NASM Language](https://www.nasm.us/doc/nasm03.html)
-- [Intel SDM Volume 1](https://cdrdv2-public.intel.com/922477/253665-092-sdm-vol-1.pdf)，Chapter 3 的通用寄存器
-- [Intel SDM Volume 2](https://cdrdv2-public.intel.com/922478/325383-092-sdm-vol-2abcd.pdf)，`OUT` 指令
+- [Intel SDM Volume 1](https://cdrdv2.intel.com/v1/dl/getContent/671436)，Chapter 3 的通用寄存器
+- [Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110)，`OUT` 指令
 
 ## 先预测
 

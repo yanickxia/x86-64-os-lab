@@ -3,17 +3,27 @@ org 0x7c00
 
 
 start:
-    ; Keep the CPU at a stable address so GDB can inspect this sector.
-    MOV AL, 'X'
-    OUT 0xE9, AL
-    jmp $
+    cli
+    xor ax, ax
+    mov es, ax
+    mov ds, ax
+    mov ss, ax
+    mov sp, 0x7c00
+    sti
 
-; TODO: Pad the flat binary so the boot signature starts at byte offset 510.
-; Hint: NASM's `$` is the current position and `$$` is the section start.
+; Keep the GDB checkpoint at the fixed address 0x7c14.
+times 0x10 - ($ - $$) db 0x90
+
+stack_probe:
+    mov ax, 0x1234
+    push ax
+
+after_push:
+    mov al, 'X'
+    out 0xe9, al
+
+hang:
+    jmp hang
 
 times 510 - ($ - $$) db 0
-
-; TODO: Store the 16-bit boot signature 0xaa55.
-; Remember that x86 stores a word in little-endian byte order.
-
 dw 0xaa55
