@@ -11,19 +11,22 @@ start:
     mov sp, 0x7c00
     sti
 
-; Keep the GDB checkpoint at the fixed address 0x7c14.
+; Keep main at a fixed address for the lesson tests.
 times 0x10 - ($ - $$) db 0x90
 
-stack_probe:
-    mov ax, 0x1234
-    push ax
-
-after_push:
+main:
     mov al, 'X'
-    out 0xe9, al
+    call putc
 
 hang:
     jmp hang
+
+; Keep putc at 0x7c20 so its entry state is predictable in GDB.
+times 0x20 - ($ - $$) db 0x90
+
+putc:
+    out 0xe9, al
+    ret
 
 times 510 - ($ - $$) db 0
 dw 0xaa55

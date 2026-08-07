@@ -36,7 +36,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot check-segments
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot check-segments check-call
 
 check-tools:
 	@set -e; \
@@ -94,7 +94,10 @@ run-debugcon: check-boot
 		-device isa-debugcon,iobase=0xe9,chardev=debugcon
 
 disassemble-boot: boot
-	@ndisasm -b 16 -o 0x7c00 $(BOOT_BIN) | head -n 20
+	@ndisasm -b 16 -o 0x7c00 $(BOOT_BIN) | head -n 32
 
 check-segments: check-boot
 	@zsh scripts/check-segments.zsh $(BOOT_BIN)
+
+check-call: check-boot
+	@zsh scripts/check-call.zsh $(BOOT_BIN)
