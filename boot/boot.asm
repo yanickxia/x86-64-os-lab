@@ -4,6 +4,8 @@ org 0x7c00
 
 start:
     ; Keep the CPU at a stable address so GDB can inspect this sector.
+    MOV AL, 'X'
+    OUT 0xE9, AL
     jmp $
 
 ; TODO: Pad the flat binary so the boot signature starts at byte offset 510.

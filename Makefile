@@ -34,9 +34,9 @@ QEMU_BOOT_FLAGS := \
 	-no-reboot \
 	-no-shutdown \
 	-boot order=a \
-	-drive if=floppy,format=raw,file=$(BOOT_BIN)
+	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot
 
 check-tools:
 	@set -e; \
@@ -75,3 +75,23 @@ qemu-boot: check-boot
 inspect-boot:
 	@mkdir -p build
 	@x86_64-elf-gdb -q -x gdb/boot.gdb
+
+check-debugcon: check-boot
+	@zsh scripts/check-debugcon.zsh $(BOOT_BIN)
+
+run-debugcon: check-boot
+	@printf "Debug console output follows; press Ctrl-C to stop QEMU.\n"
+	@qemu-system-x86_64 \
+		-machine pc \
+		-accel tcg \
+		-display none \
+		-serial none \
+		-monitor none \
+		-no-reboot \
+		-boot order=a \
+		-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN) \
+		-chardev stdio,id=debugcon,signal=off \
+		-device isa-debugcon,iobase=0xe9,chardev=debugcon
+
+disassemble-boot: boot
+	@ndisasm -b 16 -o 0x7c00 $(BOOT_BIN) | head -n 8
