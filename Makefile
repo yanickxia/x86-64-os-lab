@@ -20,7 +20,23 @@ QEMU_RESET_FLAGS := \
 	-no-reboot \
 	-no-shutdown
 
-.PHONY: check-tools qemu-reset inspect-reset
+BOOT_SRC := boot/boot.asm
+BOOT_BIN := build/boot.bin
+
+QEMU_BOOT_FLAGS := \
+	-machine pc \
+	-accel tcg \
+	-S \
+	-gdb tcp::1234 \
+	-display none \
+	-serial none \
+	-monitor none \
+	-no-reboot \
+	-no-shutdown \
+	-boot order=a \
+	-drive if=floppy,format=raw,file=$(BOOT_BIN)
+
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot
 
 check-tools:
 	@set -e; \
@@ -42,3 +58,20 @@ qemu-reset:
 inspect-reset:
 	@mkdir -p build
 	@x86_64-elf-gdb -q -x gdb/reset.gdb
+
+$(BOOT_BIN): $(BOOT_SRC)
+	@mkdir -p build
+	@nasm -f bin -o $@ $<
+
+boot: $(BOOT_BIN)
+
+check-boot: boot
+	@zsh scripts/check-boot-sector.zsh $(BOOT_BIN)
+
+qemu-boot: check-boot
+	@printf "QEMU is paused at reset; press Ctrl-C after inspection to stop it.\n"
+	@qemu-system-x86_64 $(QEMU_BOOT_FLAGS)
+
+inspect-boot:
+	@mkdir -p build
+	@x86_64-elf-gdb -q -x gdb/boot.gdb
