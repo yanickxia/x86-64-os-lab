@@ -2,20 +2,14 @@ set pagination off
 set confirm off
 set disassembly-flavor intel
 
-hbreak *0x7c20
-hbreak *0x7c15
+hbreak *0x7c30
+hbreak *0x7c1c
 continue
 
 set $pc_value = (unsigned long)$rip
 
-if (($pc_value & 0xffff) == 0x7c15)
-    printf "FAIL: reached hang without entering putc; output was produced directly\n"
-    detach
-    quit 1
-end
-
-if (($pc_value & 0xffff) != 0x7c20)
-    printf "FAIL: expected to stop at putc (0x7c20)\n"
+if (($pc_value & 0xffff) != 0x7c30)
+    printf "FAIL: expected to stop at putc (0x7c30)\n"
     detach
     quit 1
 end
@@ -35,8 +29,8 @@ if (($sp_value & 0xffff) != 0x7bfe)
     quit 1
 end
 
-if (*(unsigned short *)$stack_linear != 0x7c15)
-    printf "FAIL: stack top expected return address 0x7c15\n"
+if (*(unsigned short *)$stack_linear != 0x7c1c)
+    printf "FAIL: stack top expected return address 0x7c1c\n"
     detach
     quit 1
 end
@@ -46,11 +40,11 @@ continue
 set $pc_value = (unsigned long)$rip
 set $sp_value = (unsigned int)$sp
 
-printf "\n--- after ret: execution is back at hang ---\n"
+printf "\n--- after ret: execution resumes after call ---\n"
 info registers cs rip ss sp ax
 
-if (($pc_value & 0xffff) != 0x7c15)
-    printf "FAIL: RET did not return to 0x7c15\n"
+if (($pc_value & 0xffff) != 0x7c1c)
+    printf "FAIL: RET did not return to 0x7c1c\n"
     detach
     quit 1
 end
@@ -61,7 +55,6 @@ if (($sp_value & 0xffff) != 0x7c00)
     quit 1
 end
 
-printf "call/ret check passed: return=0x7c15, SP 0x7c00 -> 0x7bfe -> 0x7c00\n"
+printf "call/ret check passed: return=0x7c1c, SP 0x7c00 -> 0x7bfe -> 0x7c00\n"
 detach
 quit 0
-

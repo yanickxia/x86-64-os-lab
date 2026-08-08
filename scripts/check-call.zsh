@@ -4,7 +4,6 @@ set -eu
 
 boot_bin="$1"
 gdb_socket="build/call-gdb-${$}.sock"
-output_file="build/call-debugcon-${$}.log"
 qemu_pid=""
 
 cleanup() {
@@ -32,9 +31,7 @@ qemu-system-x86_64 \
     -monitor none \
     -no-reboot \
     -boot order=a \
-    -drive if=floppy,format=raw,readonly=on,file="$boot_bin" \
-    -chardev file,id=debugcon,path="$output_file" \
-    -device isa-debugcon,iobase=0xe9,chardev=debugcon &
+    -drive if=floppy,format=raw,readonly=on,file="$boot_bin" &
 qemu_pid="$!"
 
 for attempt in {1..30}; do
@@ -52,13 +49,4 @@ x86_64-elf-gdb \
     -batch \
     -ex "target remote $gdb_socket" \
     -x gdb/call.gdb
-
-actual_output="$(< "$output_file")"
-
-if [[ "$actual_output" != "X" ]]; then
-    print -u2 "putc output: expected 'X', got '${actual_output}'"
-    exit 1
-fi
-
-print "putc output check passed: received 'X'"
 

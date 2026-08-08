@@ -3,6 +3,7 @@
 set -eu
 
 boot_bin="$1"
+expected_output="${2:-X}"
 output_file="build/debugcon.log"
 qemu_pid=""
 
@@ -41,9 +42,9 @@ trap - EXIT INT TERM
 
 actual_output="$(< "$output_file")"
 
-if [[ "$actual_output" != "X" ]]; then
-    print -u2 "debug console: expected 'X', got '${actual_output}'"
+if [[ "$actual_output" != "$expected_output" ]]; then
+    print -u2 "debug console: expected '${expected_output}', got '${actual_output}'"
     exit 1
 fi
 
-print "debug console check passed: received 'X' from I/O port 0xe9"
+print "debug console check passed: received '${expected_output}' from I/O port 0xe9"

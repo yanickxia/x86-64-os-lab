@@ -22,6 +22,7 @@ QEMU_RESET_FLAGS := \
 
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
+DEBUGCON_EXPECTED := Hello
 
 QEMU_BOOT_FLAGS := \
 	-machine pc \
@@ -36,7 +37,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot check-segments check-call
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message check-segments check-call
 
 check-tools:
 	@set -e; \
@@ -77,7 +78,7 @@ inspect-boot:
 	@x86_64-elf-gdb -q -x gdb/boot.gdb
 
 check-debugcon: check-boot
-	@zsh scripts/check-debugcon.zsh $(BOOT_BIN)
+	@zsh scripts/check-debugcon.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)
 
 run-debugcon: check-boot
 	@printf "Debug console output follows; press Ctrl-C to stop QEMU.\n"
@@ -95,6 +96,9 @@ run-debugcon: check-boot
 
 disassemble-boot: boot
 	@ndisasm -b 16 -o 0x7c00 $(BOOT_BIN) | head -n 32
+
+inspect-message: boot
+	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
 check-segments: check-boot
 	@zsh scripts/check-segments.zsh $(BOOT_BIN)
