@@ -18,7 +18,7 @@ npm run dev
 
 - `/`：学习进度、启动链路和下一课
 - `/lessons`：课程目录
-- `/lessons/lesson-00` 至 `/lessons/lesson-06`：课程正文与个人答案
+- `/lessons/lesson-00` 至当前最新课程：课程正文与个人答案
 - `/roadmap`：完整学习路线
 - `/reference`：NASM 与 x86 汇编速查
 

@@ -15,6 +15,11 @@ start:
 times 0x10 - ($ - $$) db 0x90
 
 main:
+    ; Enable A20 while keeping fast reset disabled.
+    in al, 0x92
+    and al, 0xfe
+    or al, 0x02
+    out 0x92, al
     mov si, message
 
 .loop:

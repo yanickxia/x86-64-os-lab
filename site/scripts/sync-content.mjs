@@ -63,6 +63,14 @@ const lessonMeta = [
     summary: "从内存逐字节读取 NUL 结尾的字符串，用 ZF 和条件跳转控制循环。",
     takeaway: "DS:SI → TEST → JZ",
   },
+  {
+    id: "07",
+    slug: "lesson-07",
+    phase: "地址总线",
+    status: "completed",
+    summary: "理解 1 MiB 地址回绕，通过系统控制端口安全开启 A20 地址线。",
+    takeaway: "port 0x92 · A20 · 1 MiB",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

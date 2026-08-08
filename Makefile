@@ -7,7 +7,8 @@ TOOLS := \
 	x86_64-elf-gcc \
 	x86_64-elf-ld \
 	x86_64-elf-objdump \
-	x86_64-elf-gdb
+	x86_64-elf-gdb \
+	socat
 
 QEMU_RESET_FLAGS := \
 	-machine pc \
@@ -37,7 +38,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message check-segments check-call
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message check-segments check-call check-a20
 
 check-tools:
 	@set -e; \
@@ -105,3 +106,6 @@ check-segments: check-boot
 
 check-call: check-boot
 	@zsh scripts/check-call.zsh $(BOOT_BIN)
+
+check-a20: check-boot
+	@zsh scripts/check-a20.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)
