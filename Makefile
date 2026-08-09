@@ -38,7 +38,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message check-segments check-call check-a20
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message inspect-gdt check-segments check-call check-a20 check-gdt
 
 check-tools:
 	@set -e; \
@@ -101,6 +101,9 @@ disassemble-boot: boot
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
+inspect-gdt: boot
+	@xxd -g 1 -s 0x50 -l 30 $(BOOT_BIN)
+
 check-segments: check-boot
 	@zsh scripts/check-segments.zsh $(BOOT_BIN)
 
@@ -109,3 +112,6 @@ check-call: check-boot
 
 check-a20: check-boot
 	@zsh scripts/check-a20.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)
+
+check-gdt: check-boot
+	@zsh scripts/check-gdt.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)

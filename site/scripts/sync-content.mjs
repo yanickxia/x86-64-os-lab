@@ -71,6 +71,14 @@ const lessonMeta = [
     summary: "理解 1 MiB 地址回绕，通过系统控制端口安全开启 A20 地址线。",
     takeaway: "port 0x92 · A20 · 1 MiB",
   },
+  {
+    id: "08",
+    slug: "lesson-08",
+    phase: "保护模式准备",
+    status: "completed",
+    summary: "构造 null、code、data 三项最小 GDT，并用 LGDT 装入 GDTR。",
+    takeaway: "GDT · descriptor · LGDT",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

@@ -20,6 +20,10 @@ main:
     and al, 0xfe
     or al, 0x02
     out 0x92, al
+
+    ; 记录 LGDT 指令
+    lgdt [gdt_descriptor]
+
     mov si, message
 
 .loop:
@@ -44,6 +48,18 @@ times 0x40 - ($ - $$) db 0
 
 message:
     db 'Hello', 0, 'Z'
+
+times 0x50 - ($ - $$) db 0
+
+gdt:
+    dq 0x0000000000000000
+    dq 0x00cf9a000000ffff
+    dq 0x00cf92000000ffff
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt - 1
+    dd gdt
 
 times 510 - ($ - $$) db 0
 dw 0xaa55

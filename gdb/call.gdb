@@ -3,7 +3,7 @@ set confirm off
 set disassembly-flavor intel
 
 hbreak *0x7c30
-hbreak *0x7c24
+hbreak *0x7c29
 continue
 
 set $pc_value = (unsigned long)$rip
@@ -29,8 +29,8 @@ if (($sp_value & 0xffff) != 0x7bfe)
     quit 1
 end
 
-if (*(unsigned short *)$stack_linear != 0x7c24)
-    printf "FAIL: stack top expected return address 0x7c24\n"
+if (*(unsigned short *)$stack_linear != 0x7c29)
+    printf "FAIL: stack top expected return address 0x7c29\n"
     detach
     quit 1
 end
@@ -43,8 +43,8 @@ set $sp_value = (unsigned int)$sp
 printf "\n--- after ret: execution resumes after call ---\n"
 info registers cs rip ss sp ax
 
-if (($pc_value & 0xffff) != 0x7c24)
-    printf "FAIL: RET did not return to 0x7c24\n"
+if (($pc_value & 0xffff) != 0x7c29)
+    printf "FAIL: RET did not return to 0x7c29\n"
     detach
     quit 1
 end
@@ -55,6 +55,6 @@ if (($sp_value & 0xffff) != 0x7c00)
     quit 1
 end
 
-printf "call/ret check passed: return=0x7c24, SP 0x7c00 -> 0x7bfe -> 0x7c00\n"
+printf "call/ret check passed: return=0x7c29, SP 0x7c00 -> 0x7bfe -> 0x7c00\n"
 detach
 quit 0
