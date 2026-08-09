@@ -49,12 +49,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 source ~/.zshrc          # Makefile 用 zsh，先载入环境
 make check-tools         # 工具链自检，必须先过
 make boot                # nasm -f bin 生成 build/boot.bin
+make image               # 生成 1.44 MiB build/os.img：boot 在 LBA 0，payload 在 LBA 1
 ```
 
 按课验收（每个都隐含 `check-boot`，所以是累积回归）：
 
 ```sh
 make check-boot          # 512 字节 + 0xaa55 签名 + BIOS 加载到 0x7c00
+make check-image         # raw image 布局：boot sector + 独立 payload
 make check-debugcon      # 端口 0xe9 收到预期输出
 make check-segments      # DS=ES=SS=0, SP=0x7c00
 make check-call          # call/ret 的返回地址
@@ -63,6 +65,7 @@ make check-gdt           # GDTR base=0x7c50 limit=0x001f
 make check-protected     # CR0.PE=1，32/64 位最终状态均保持段基础不变量
 make check-page-tables   # PML4[0] → PDPT[0] → 2 MiB identity map
 make check-long-mode     # CR4.PAE、CR3、EFER.LME/LMA、CR0.PG 与 CS64
+make check-kernel-load   # 镜像 sector 2 已被 BIOS 读到物理地址 0x10000
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -71,6 +74,8 @@ make check-long-mode     # CR4.PAE、CR3、EFER.LME/LMA、CR0.PG 与 CS64
 
 ```sh
 make disassemble-boot    # 按 16/32 位执行区域分段反汇编，看机器码和控制流
+make disassemble-kernel  # 按 64 位规则反汇编 0x10000 的独立 payload
+make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
 make qemu-reset          # 终端 A：QEMU 停在第一条指令前
@@ -111,14 +116,15 @@ npm run lint
 | `0x7ce0` | `gdt_descriptor` | 四项 GDT 的 6 字节 GDTR 伪描述符             |
 | `0x7cf0` | `enable_long_mode` | 第 11 课的 32 位 long-mode 切换序列         |
 | `0x7d30` | `long_mode_entry` | `CS.L=1` 后按 64 位解码的入口              |
+| `0x7d50` | `load_kernel` | 第 12 课调用 BIOS INT 13h 的 16 位读盘函数       |
 
-`main` 区（`0x7c10..0x7c30`）依然只剩 2 字节；第 9 课用 short jump 转到 `0x7c70` 的切换序列，因此保留了旧课的固定地址证据。后续扩展启动代码时，不能让新区域与 message、GDT 或启动扇区签名重叠。
+`start` 在 `0x7c0d` 用 3 字节 near call 调用固定在 `0x7d50` 的 `load_kernel`，所以 `main` 仍保持在 `0x7c10`。`main` 区（`0x7c10..0x7c30`）依然只剩 2 字节；第 9 课用 short jump 转到 `0x7c70` 的切换序列，因此保留了旧课的固定地址证据。后续扩展启动代码时，不能让新区域与 message、GDT 或启动扇区签名重叠。
 
 `org 0x7c00` 只告诉 NASM 假设代码位于该地址以便算标签，不负责加载；填充一律用 `times 510 - ($ - $$) db 0` 这种动态表达式，不要写死字节数。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
-无头启动 QEMU（`-display none -serial none -monitor none`），镜像**只读**挂载，用 `-chardev file` 把 `isa-debugcon` 的输出写进 `build/*-${$}.log`，轮询等到预期输出出现，再通过 `-monitor unix:...sock` + `socat` 发 `info registers` 读寄存器，最后断言。`trap cleanup EXIT INT TERM` 负责杀进程、删 socket 和日志。
+无头启动 QEMU（`-display none -serial none`），`build/os.img` **只读**挂载，用 `-chardev file` 把 `isa-debugcon` 的输出写进 `build/*-${$}.log`，轮询等到预期输出出现；需要机器状态的脚本再通过 `-monitor unix:...sock` + `socat` 查询寄存器或物理内存，最后断言。`trap cleanup EXIT INT TERM` 负责杀进程、删 socket 和日志。
 
 写新脚本照这个形状抄。断言失败时要打印期望值和实际值两行——学生要把它抄进 `notes/` 的“红灯”一节。
 
@@ -149,6 +155,6 @@ npm run lint
 
 ## 当前进度
 
-第 0–11 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后，三个 entry 的 Accessed 位会被置 1。
+第 0–12 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后，三个 entry 的 Accessed 位会被置 1。
 
-下一阶段突破 512 字节启动扇区限制，加载独立的 64 位 kernel，建立 linker script、System V x86-64 ABI 与 C 运行环境。
+第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。下一课把执行权交给独立载荷；之后建立 linker script、System V x86-64 ABI 与 C 运行环境。

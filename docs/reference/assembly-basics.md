@@ -211,3 +211,49 @@ wrmsr
 
 - [NASM Expressions](https://www.nasm.us/doc/nasm03.html#section-3.5)
 - [Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110)：`MOV—Control Registers`、`RDMSR`、`WRMSR`
+
+## 9. `INT`、`JC` 与 BIOS 寄存器接口
+
+`INT imm8` 是带一个 8 位向量号的 CPU 指令：
+
+```asm
+int 0x13
+```
+
+在 PC BIOS 建立的实模式环境中，向量 `0x13` 对应固件磁盘服务。`AH` 选择子功能，其余寄存器传参；这是 BIOS 规定的调用约定，不是 NASM 自己赋予寄存器的含义。
+
+例如 `AH=0x02` 的经典 sector read 接口使用 `AL` 表示扇区数、`CH/CL/DH` 表示 CHS 地址、`DL` 表示驱动器、`ES:BX` 表示目标缓冲区。固件通过 carry flag 返回成功或失败。
+
+`JC label` 是 jump if carry：
+
+```asm
+int 0x13
+jc disk_error      ; 仅当 CF=1 时跳转
+```
+
+与之对应，`JNC` 是 jump if not carry，即 `CF=0` 时跳转。`JC`/`JNC` 读取现有 flags，不会自行执行比较。对于 BIOS 接口，必须根据该服务文档解释 flag，不能把 `CF` 永远理解成普通加法的进位。
+
+段寄存器也可在 16 位代码中用栈临时保存：
+
+```asm
+push es
+mov ax, 0x1000
+mov es, ax
+; 使用 ES:BX 作为 BIOS 缓冲区
+pop es
+```
+
+x86 不允许 `mov es, 0x1000` 这种 immediate 直接写段寄存器，所以先把数值放入通用寄存器 `AX`。栈按后进先出工作；多个 `PUSH` 必须按相反顺序 `POP`。
+
+要区分两个方向相反的事件：
+
+- 软件执行 `INT 0x13`，主动调用固件服务。
+- 硬件 IRQ 由设备异步发出，请求 CPU 处理中断。
+
+它们都可能使用 CPU 的中断机制，但“调用 BIOS 读盘”并不等于“磁盘硬件此刻向 CPU 发出 IRQ 13”。
+
+参考：
+
+- [Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110)：`INT n/INTO/INT3`、`JC/JNC/Jcc`
+- [SeaBIOS disk services](https://github.com/coreboot/seabios/blob/master/src/disk.c)
+- [Ralf Brown's Interrupt List：INT 13/AH=02h](https://www.ctyme.com/intr/rb-0607.htm)

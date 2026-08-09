@@ -69,12 +69,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>64 位 long mode 里程碑已完成</h2>
-            <p>从 CPU 复位、保护模式和四级页表，到激活分页并以 CS64 执行，每一步都已留下可重复验证的机器证据。</p>
+            <h2>独立载荷已读入内存</h2>
+            <p>启动扇区已经通过 BIOS 读取镜像的第 2 个扇区，并用物理内存证据证明 512 字节载荷完整出现在 0x10000。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>RESET → PAGING → CS64</code>
+            <code>BIOS → LBA 1 → 0x10000</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

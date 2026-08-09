@@ -12,6 +12,9 @@ CR4_PAE equ 1 << 5
 EFER_LME equ 1 << 8
 CR0_PG equ 1 << 31
 CODE64_SELECTOR equ 3 << 3
+KERNEL_LOAD_SEGMENT equ 0x1000
+KERNEL_LOAD_ADDR equ KERNEL_LOAD_SEGMENT << 4
+KERNEL_SECTORS equ 1
 
 
 start:
@@ -22,6 +25,8 @@ start:
     mov ss, ax
     mov sp, 0x7c00
     sti
+
+    call load_kernel
 
 ; Keep main at a fixed address for the lesson tests.
 times 0x10 - ($ - $$) db 0x90
@@ -160,6 +165,43 @@ long_mode_entry:
     out 0xe9, al
 .long_mode_hang:
     jmp .long_mode_hang
+
+times 0x150 - ($ - $$) db 0
+
+bits 16
+load_kernel:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+
+    ;
+    mov ax, KERNEL_LOAD_SEGMENT
+    mov es, ax
+    mov bx, 0x0000
+
+    mov ah, 0x02
+    mov al, 0x01
+    mov ch, 0x00
+    mov cl, 0x02
+    mov dh, 0x00
+    int 0x13
+    jc .disk_read_failed
+    jmp .done
+
+.done:
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+
+.disk_read_failed:
+    mov al, 'E'
+    out 0xe9, al
+    jmp .disk_read_failed
 
 times 510 - ($ - $$) db 0
 dw 0xaa55
