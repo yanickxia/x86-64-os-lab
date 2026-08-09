@@ -215,7 +215,37 @@ page frame base = 0    → linear = physical（低 2 MiB 内）
 
 固定大小 page 让操作系统可以逐页分配、回收、共享、换出和设置权限；多级页表又避免为空洞区域预分配大量 entry。
 
-### 1.6 long mode 中 segmentation 去了哪里
+### 1.6 为什么 32 位操作系统后来也很少谈 segmentation
+
+32 位保护模式不能关闭 segmentation：每次访问仍然要经过 `CS/DS/ES/SS` 对应 descriptor 的 base、limit 和权限规则。但 Linux、JOS 等现代 32 位内核通常采用 flat segmentation：
+
+```text
+kernel code/data segment: base=0, limit=4 GiB, DPL=0
+user code/data segment:   base=0, limit=4 GiB, DPL=3
+```
+
+于是普通地址的数值同样不变：
+
+```text
+logical offset 0x08048000
+    --segment base 0--> linear 0x08048000
+    --paging----------> 某个 physical frame
+```
+
+内核态与用户态仍使用不同的 `CS/SS` selector，segment descriptor 继续帮助 CPU 判断 CPL/DPL；但进程的地址空间隔离不依赖“给每个进程不同的 segment base”，而是让各进程使用不同 `CR3` 和 page tables。同一个用户 linear address 因此可以在两个进程中落到不同物理页。
+
+这正是 MIT 6.828 的 32 位 JOS 实验给人的体验：启动早期配置一次 GDT；之后内存实验主要围绕 page directory、page table、`CR3`、缺页异常和用户映射。segment 通常只在 ring 0/ring 3 切换、trap、TSS、TLS 或少数兼容机制附近重新出现。
+
+为什么操作系统主动把强大的 segmentation 配置得近乎透明？因为 paging 更适合现代虚拟内存：它能以固定大小 page 实现稀疏分配、逐页权限、共享、copy-on-write、按需调页和 `mmap`，同时保留 C/Unix 所期待的平坦指针模型。
+
+所以“后来直接学 paging”并不表示 CPU 跳过了 segmentation，而是：
+
+```text
+32 位：segmentation 仍强制存在，但被 flat model 配置成数值透明
+64 位：架构进一步弱化普通 segmentation，paging 仍是主体
+```
+
+### 1.7 long mode 中 segmentation 去了哪里
 
 严格地说，long mode 包含 64-bit mode 与 compatibility mode。进入 64-bit mode 后：
 
@@ -232,7 +262,7 @@ offset ≈ linear/virtual address --paging--> physical address
 
 但 `FS:`/`GS:` 访问仍会先加 base，兼容模式仍保留传统 segmentation 行为。说“64 位模式完全没有段”会遗漏这些重要例外。
 
-### 1.7 CPU 会不会每次访问都真的读取 GDT 和四张表
+### 1.8 CPU 会不会每次访问都真的读取 GDT 和四张表
 
 概念上，每次访问都必须满足 segmentation 和 paging 的翻译与权限规则；实现上，CPU 用缓存避免反复读表：
 
