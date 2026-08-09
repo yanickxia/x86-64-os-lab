@@ -73,7 +73,7 @@ out immediate_port, al
 
 ## 先预测
 
-在修改代码前，把以下预测写入 `notes/lesson-03.md`：
+在修改代码前，把以下预测写入 `notes/note-03.md`：
 
 1. ASCII 字符 `X` 的数值是多少？
 2. `out 0xe9, al` 的数据方向是端口到 CPU，还是 CPU 到端口？

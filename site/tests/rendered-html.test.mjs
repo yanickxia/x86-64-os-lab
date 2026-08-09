@@ -35,8 +35,9 @@ test("renders a finished course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>9<\/strong><span>节已完成/);
-  assert.match(html, /实模式基础阶段已完成/);
+  assert.match(html, /<strong>10<\/strong><span>节已完成/);
+  assert.match(html, /32 位保护模式里程碑已完成/);
+  assert.doesNotMatch(html, /下一步：/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -46,6 +47,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-05", /call.*返回地址.*ret/is],
     ["/lessons/lesson-07", /A20.*1 MiB/is],
     ["/lessons/lesson-08", /GDT.*LGDT.*GDTR/is],
+    ["/lessons/lesson-09", /CR0\.PE.*far jump.*bits 32/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];
@@ -68,7 +70,7 @@ test("keeps Markdown as the canonical source", async () => {
   );
 
   assert.match(generator, /docs\/\$\{meta\.slug\}\.md/);
-  assert.match(generator, /notes\/\$\{meta\.slug\}\.md/);
+  assert.match(generator, /notes\/note-\$\{meta\.id\}\.md/);
   assert.match(generated, /第 0 课：先认识实验机器/);
   assert.match(generated, /第 6 课：从内存遍历 NUL 结尾的字符串/);
 });

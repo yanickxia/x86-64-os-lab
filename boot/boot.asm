@@ -35,7 +35,7 @@ main:
     jmp .loop
 
 hang:
-    jmp hang
+    jmp enter_protected_mode
 
 ; Keep putc and message at fixed addresses for the lesson tests.
 times 0x30 - ($ - $$) db 0x90
@@ -60,6 +60,34 @@ gdt_end:
 gdt_descriptor:
     dw gdt_end - gdt - 1
     dd gdt
+
+times 0x70 - ($ - $$) db 0
+
+bits 16
+enter_protected_mode:
+    cli
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax ; 设置 CR0.PE 为 1
+    jmp 0x0008:protected_mode_entry ; 进入保护模式
+.real_mode_hang:
+    jmp .real_mode_hang
+
+times 0x90 - ($ - $$) db 0
+
+bits 32
+protected_mode_entry:
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov esp, 0x00090000
+
+    mov al, 'P'
+    out 0xe9, al
+
+.protected_mode_hang:
+    jmp .protected_mode_hang
 
 times 510 - ($ - $$) db 0
 dw 0xaa55

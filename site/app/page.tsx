@@ -67,12 +67,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>实模式基础阶段已完成</h2>
-            <p>从复位入口到内存字符串循环，每一步都已留下可重复验证的机器证据。</p>
+            <h2>32 位保护模式里程碑已完成</h2>
+            <p>从 CPU 复位到设置 CR0.PE、远跳转重载 CS，每一步都已留下可重复验证的机器证据。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>RESET → MEMORY LOOP</code>
+            <code>RESET → PROTECTED MODE</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

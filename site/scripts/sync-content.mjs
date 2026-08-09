@@ -79,6 +79,14 @@ const lessonMeta = [
     summary: "构造 null、code、data 三项最小 GDT，并用 LGDT 装入 GDTR。",
     takeaway: "GDT · descriptor · LGDT",
   },
+  {
+    id: "09",
+    slug: "lesson-09",
+    phase: "保护模式",
+    status: "completed",
+    summary: "设置 CR0.PE，通过 far jump 重载 CS，并在 32 位入口建立数据段和栈。",
+    takeaway: "CR0.PE · far jump · bits 32",
+  },
 ];
 
 function titleFromMarkdown(markdown) {
@@ -92,7 +100,7 @@ async function read(relativePath) {
 const lessons = await Promise.all(
   lessonMeta.map(async (meta) => {
     const markdown = await read(`docs/${meta.slug}.md`);
-    const notes = await read(`notes/${meta.slug}.md`);
+    const notes = await read(`notes/note-${meta.id}.md`);
     return {
       ...meta,
       title: titleFromMarkdown(markdown).replace(/`/g, ""),

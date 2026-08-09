@@ -27,6 +27,6 @@ cd /Users/yanick/codes/mine/operating-system/x86-64-os-lab
 make check-tools
 ```
 
-然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/lesson-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
+然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
 常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)。

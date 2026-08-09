@@ -27,7 +27,7 @@ npm run dev
 运行 `npm run dev` 或 `npm run build` 前，站点会自动执行 `scripts/sync-content.mjs`，读取：
 
 - `../docs/lesson-*.md`
-- `../notes/lesson-*.md`
+- `../notes/note-*.md`
 - `../docs/roadmap.md`
 - `../docs/reference/assembly-basics.md`
 
