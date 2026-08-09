@@ -49,7 +49,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-07", /A20.*1 MiB/is],
     ["/lessons/lesson-08", /GDT.*LGDT.*GDTR/is],
     ["/lessons/lesson-09", /CR0\.PE.*far jump.*bits 32/is],
-    ["/lessons/lesson-10", /PML4.*PDPT.*2 MiB.*恒等映射/is],
+    ["/lessons/lesson-10", /PML4.*effective address.*linear address.*physical address.*TLB/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

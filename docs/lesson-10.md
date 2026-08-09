@@ -11,7 +11,11 @@
 
 本课会首次使用 `EDI`、`ECX`、`CLD`、`REP STOSD` 和 `mov dword [absolute_address], immediate`。这些语法在练习前都会解释，不需要预先会写。
 
-硬件参考：[Intel 64 and IA-32 Software Developer Manuals](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)，重点是 Volume 3A 的“4-Level Paging”、“Paging-Structure Entries”和“2-MByte Pages”。
+硬件参考：
+
+- [Intel SDM Volume 1](https://cdrdv2.intel.com/v1/dl/getContent/671436) 的 “Memory Organization” 与 “Addressing”。
+- [Intel SDM Volume 3A](https://cdrdv2.intel.com/v1/dl/getContent/671190) 的 “Protected-Mode Memory Management” 与 “Paging”。
+- [AMD64 Architecture Programmer's Manual, Volume 2](https://docs.amd.com/v/u/en-US/24593_3.44_APM_Vol2) 的 “Memory System”。
 
 ## 本课只引入一个机制
 
@@ -23,22 +27,229 @@ PML4[0] → PDPT[0] → PD[0, PS=1] → 2 MiB physical page at 0
 
 本课不加载 `CR3`，不设置 `CR4.PAE`，不设置 `EFER.LME`，也不打开 `CR0.PG`。页表完成后仍然只是内存中的数据结构；下一课才让 CPU 真正走这条翻译路径。
 
-## 1. 分页从哪里来
+## 1. 一次内存访问到底经过哪些地址
 
-8086 最初使用分段来扩大地址范围；80286 把段改造成带 base、limit 和权限的 descriptor，从而提供保护。但“每个程序看到一套独立、可以稀疏分配的地址空间”用大小不一的段很难管理：
-
-- 段长度不同，物理内存容易形成外部碎片。
-- 增长一个段可能要搬动它。
-- 以段为单位换入换出过于粗糙。
-- 很难便宜地表示“中间大片不存在，两端各有一小块”的稀疏空间。
-
-80386 加入了 paging，它把分段得到的线性地址再切成固定大小的 page，并通过页表映射到物理 page frame：
+“逻辑地址 → 线性地址 → 物理地址”不是三种内存，而是同一次访问在不同翻译阶段的名字。先把完整路径展开：
 
 ```text
-逻辑地址 --segmentation--> 线性地址 --paging--> 物理地址
+instruction registers/immediate
+              │
+              │ 计算 effective address（offset）
+              v
+      segment selector : offset
+              │
+              │ segmentation
+              │ segment base + offset，并检查段规则
+              v
+        linear address
+              │
+              │ paging（CR0.PG=1 时）
+              │ CR3 + page-table walk
+              v
+        physical address
+              │
+              v
+       cache / RAM / MMIO
 ```
 
-我们当前的段 base 都是 0，所以逻辑 offset 和线性地址数值相同。开启分页后，线性地址才会再翻译一次。在 x86-64 long mode 中，paging 不再是可选项；要进 long mode，必须先准备好它。
+### 1.1 四个术语不要混用
+
+| 术语 | 它是什么 | 本课程中的例子 |
+| --- | --- | --- |
+| effective address / offset | 指令用寄存器、比例、位移算出的段内偏移 | `0x7c00` |
+| logical address | segment selector 与 offset 组成的地址 | `DS:0x7c00`，其中 `DS=0x10` |
+| linear address | segmentation 的结果，也是 paging 的输入 | `0x00007c00` |
+| physical address | paging 的结果，最终指向 RAM 或 MMIO | 恒等映射下仍为 `0x00007c00` |
+
+现代操作系统教材常把 linear address 直接称为 virtual address。原因是主流 x86-64 内核使用 flat segmentation，程序看到的指针数值通常就是 linear/virtual address。Intel 手册为了描述完整硬件路径，仍严格区分 logical、linear 和 physical。
+
+例如指令：
+
+```asm
+mov eax, [ebx + esi * 4 + 0x20]
+```
+
+CPU 先计算：
+
+```text
+offset = EBX + ESI × 4 + 0x20
+```
+
+普通数据访问默认使用 `DS`，因此完整的 logical address 是 `DS:offset`。指令取指默认使用 `CS:EIP`，栈访问使用 `SS:ESP`；某些寻址形式默认使用 `SS`，也可以用 segment override 改成 `FS:` 或 `GS:`。所以源码中看不到 selector，不代表 segmentation 没有参与。
+
+### 1.2 segmentation：给 offset 选择一个线性地址窗口
+
+8086 的段寄存器直接参与算术：
+
+```text
+linear address = segment × 16 + offset
+```
+
+例如：
+
+```text
+1234:5678 → 0x1234 × 16 + 0x5678 = 0x179b8
+```
+
+80286 引入保护模式后，段寄存器中的可见值不再是 base，而是 selector。加载 `DS=0x10` 时，CPU 用 selector 的 index 在 GDT 中找到 descriptor，并把 descriptor 的 base、limit、类型和权限缓存到段寄存器的隐藏部分。后续访问在概念上执行：
+
+```text
+linear address = cached segment base + offset
+```
+
+同时检查 offset 是否越过 limit、段类型是否允许这次读写、当前特权级是否合适。违反段规则通常产生 `#GP`；栈段相关问题通常产生 `#SS`。这些错误发生在 paging 之前，因此此时还没有物理地址。
+
+当前课程使用 flat segmentation：
+
+```text
+DS selector  = 0x10
+GDT index    = 0x10 >> 3 = 2
+cached base  = 0
+offset       = 0x7c00
+
+linear address = 0 + 0x7c00 = 0x7c00
+```
+
+“selector 为 `0x10`”与“base 为 `0x10`”完全不是一回事。`0x10` 只是找到 GDT 第 2 项的索引编码；真正参与加法的是该 descriptor 缓存下来的 base，本课中它恰好为 0。
+
+若另一个 descriptor 的 base 为 `0x00400000`，同一个 offset `0x1234` 会得到：
+
+```text
+logical address = selector:0x1234
+linear address  = 0x00400000 + 0x1234
+                = 0x00401234
+```
+
+这就是 segmentation 的核心能力：重定位一个地址区域，并在进入 paging 之前施加粗粒度保护。
+
+### 1.3 paging：决定一个线性 page 由哪个物理 frame 承载
+
+当 `CR0.PG=0` 时，不进行页表翻译，linear address 直接作为 physical address 使用。在传统 PC 上，A20 gate 还可能在地址送到内存系统前影响 bit 20；这就是第 7 课单独处理 A20 的原因。
+
+当 `CR0.PG=1` 时，CPU 把 linear address 拆成 page-table index 和 page offset。`CR3` 给出根页表的物理地址；中间 entry 给出下一级表的物理地址；leaf entry 给出最终物理 page frame 的 base：
+
+```text
+physical address = leaf frame base + page offset
+```
+
+这里有一个容易错过的事实：page-table walk 本身读取的是物理内存。以本课将要启用的表为例，`CR3=0x1000` 告诉 CPU“从物理地址 `0x1000` 的 PML4 开始读”，并不是先用同一套页表翻译 `0x1000`。
+
+page-table entry 不只保存地址，也保存 `P/RW/US/NX` 等权限。最终访问必须同时满足路径上相关 entry 和控制寄存器的规则；entry 不存在或权限不允许时产生 `#PF`。此时 `CR2` 记录的是发生故障的 linear address，而不是一个尚未成功形成的 physical address。
+
+分页带来的关键自由是：两边不必数值相同。
+
+```text
+identity mapping
+linear 0x00007c00 → physical 0x00007c00
+
+non-identity mapping
+linear 0x00007c00 → physical 0x00207c00
+```
+
+若把本课 `PD[0]` 的物理 base 从 0 改成 `0x00200000`，同时保留 2 MiB page offset，那么 linear `0x7c00` 就会翻译成 physical `0x207c00`。只有先把代码复制到那个物理位置，CPU 才能继续执行；这解释了为什么进入分页时先使用恒等映射最省事。
+
+分页也使两个进程可以使用相同的 linear address，却由不同 `CR3` 映射到不同 RAM：
+
+```text
+process A: linear 0x00400000 → physical frame A
+process B: linear 0x00400000 → physical frame B
+```
+
+反过来，也可以让多个 linear page 指向同一个 physical frame，从而实现共享内存、共享代码页或 copy-on-write 的基础映射。
+
+### 1.4 用当前代码完整走一遍 `DS:0x7c00`
+
+下一课加载 `CR3` 并开启 paging 后，假设代码读取 logical address `DS:0x7c00`，它会经历以下过程。当前指令取指使用的是 `CS:EIP`，但由于本课 `CS` 的 base 同样为 0，对 `EIP=0x7c00` 的地址计算结果相同。
+
+第一道转换是 segmentation：
+
+```text
+logical address = DS:0x00007c00
+DS              = 0x10
+GDT[2].base     = 0
+linear address  = 0 + 0x00007c00
+                = 0x00007c00
+```
+
+第二道转换是 paging。`0x7c00 < 2 MiB`，所以 PML4、PDPT 和 PD index 都是 0，2 MiB page offset 是 `0x7c00`：
+
+```text
+CR3 = physical 0x1000
+  │
+  ├─ read physical 0x1000: PML4[0] = 0x2003
+  │                              next table at physical 0x2000
+  │
+  ├─ read physical 0x2000: PDPT[0] = 0x3003
+  │                              next table at physical 0x3000
+  │
+  └─ read physical 0x3000: PD[0]   = 0x0083
+                                 PS=1, physical base=0
+
+physical address = 0 + 0x7c00 = 0x7c00
+```
+
+所以这次恰好有两个“数值没变”：
+
+```text
+segment base = 0       → offset = linear
+page frame base = 0    → linear = physical（低 2 MiB 内）
+```
+
+它们是两个独立设计选择，不是一条硬件定律。只要把 segment base 或 page mapping 改掉，三个地址就会不同。
+
+### 1.5 历史上为什么两套机制会叠在一起
+
+这条看似复杂的流水线来自兼容演化，而不是一次设计出来的：
+
+1. 8086 用 `segment × 16 + offset` 让 16 位寄存器组合出 20 位地址，主要目标是扩大寻址范围。
+2. 80286 把 segment 变成 descriptor，加入 base、limit、类型和 privilege，主要目标是保护与多任务。
+3. 80386 保留 segmentation 兼容旧软件，又在其结果后加入 paging，用固定大小 page 解决地址空间隔离、稀疏分配和物理内存管理。
+4. x86-64 继续保留这套历史接口，但现代内核通常把 segmentation 配成 flat model，把地址空间虚拟化的主要工作交给 paging。
+
+仅靠大小不同的 segment 管理现代地址空间会遇到：
+
+- 物理内存外部碎片。
+- segment 增长时可能需要搬动。
+- 以整个 segment 换入换出过于粗糙。
+- 难以低成本表示稀疏地址空间。
+
+固定大小 page 让操作系统可以逐页分配、回收、共享、换出和设置权限；多级页表又避免为空洞区域预分配大量 entry。
+
+### 1.6 long mode 中 segmentation 去了哪里
+
+严格地说，long mode 包含 64-bit mode 与 compatibility mode。进入 64-bit mode 后：
+
+- `CS/DS/ES/SS` 的 base 被视为 0，segment limit 通常不参与地址检查。
+- `CS` 仍携带当前特权级和代码执行属性，selector/descriptor 并非毫无作用。
+- `FS` 和 `GS` 的 base 仍然有效，操作系统常用它们访问线程局部存储或 per-CPU 数据。
+- paging 是强制机制；linear address 还必须是 canonical address。本课程的四级分页要求 bit 63..48 都复制 bit 47。
+
+因此在我们最终的 64 位内核里，普通地址访问可以近似理解为：
+
+```text
+offset ≈ linear/virtual address --paging--> physical address
+```
+
+但 `FS:`/`GS:` 访问仍会先加 base，兼容模式仍保留传统 segmentation 行为。说“64 位模式完全没有段”会遗漏这些重要例外。
+
+### 1.7 CPU 会不会每次访问都真的读取 GDT 和四张表
+
+概念上，每次访问都必须满足 segmentation 和 paging 的翻译与权限规则；实现上，CPU 用缓存避免反复读表：
+
+- 加载 segment register 时，descriptor 被放进该段寄存器的隐藏 cache。普通访问直接使用缓存的 base、limit 和权限，不会每次重读 GDT。
+- 成功的 linear-page → physical-frame 翻译会进入 TLB。TLB 命中时直接得到 frame 和权限；只有 TLB miss 才需要 hardware page-table walker 读取页表。
+
+所以“page-table walk”是理解结果的正确机器模型，但不能据此误以为每条 `mov` 都必然产生四次额外 RAM 读取。后续修改页表时还必须考虑 TLB 失效，这会在虚拟内存阶段专门学习。
+
+最后把故障归因也钉牢：
+
+| 失败阶段 | 常见原因 | CPU 证据 |
+| --- | --- | --- |
+| segmentation | segment limit、类型或 privilege 不允许 | `#GP` 或 `#SS` |
+| linear-address validation | 64 位地址不 canonical | 通常为 `#GP`，栈访问可能为 `#SS` |
+| paging | entry 不 present、读写/用户/NX 权限不允许 | `#PF`，`CR2` 保存 linear address |
+
+现在可以把整条路径压缩成三句话：segment 决定“这个 offset 位于哪段线性空间并允许怎样访问”；paging 决定“这个 linear page 由哪个 physical frame 承载”；flat segment 和 identity mapping 只是分别让两道转换的数值碰巧不变。
 
 ## 2. 为什么不是一张巨大的平面表
 
