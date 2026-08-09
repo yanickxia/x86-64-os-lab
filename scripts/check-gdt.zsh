@@ -15,8 +15,8 @@ cleanup() {
         qemu_pid=""
     fi
 
-    [[ -S "$monitor_socket" ]] && unlink "$monitor_socket"
-    [[ -f "$output_file" ]] && unlink "$output_file"
+    [[ -S "$monitor_socket" ]] && unlink "$monitor_socket" 2>/dev/null || true
+    [[ -f "$output_file" ]] && unlink "$output_file" 2>/dev/null || true
 }
 
 trap cleanup EXIT INT TERM
@@ -56,9 +56,11 @@ fi
 monitor_output="$(printf 'info registers\nquit\n' | socat - "UNIX-CONNECT:$monitor_socket")"
 qemu_pid=""
 
-expected_gdtr="GDT=     00007c50 00000017"
-if [[ "$monitor_output" != *"$expected_gdtr"* ]]; then
-    print -u2 "GDT check: expected GDTR base=0x00007c50 limit=0x0017 after boot code"
+expected_gdtr_32="GDT=     00007c50 0000001f"
+expected_gdtr_64="GDT=     0000000000007c50 0000001f"
+if [[ "$monitor_output" != *"$expected_gdtr_32"* && \
+      "$monitor_output" != *"$expected_gdtr_64"* ]]; then
+    print -u2 "GDT check: expected GDTR base=0x00007c50 limit=0x001f after boot code"
     if [[ "$monitor_output" == *"GDT="* ]]; then
         gdt_tail="${monitor_output#*GDT=}"
         gdt_state="${gdt_tail%%$'\r'*}"
@@ -67,4 +69,4 @@ if [[ "$monitor_output" != *"$expected_gdtr"* ]]; then
     exit 1
 fi
 
-print "GDT check passed: GDTR base=0x00007c50 limit=0x0017"
+print "GDT check passed: GDTR base=0x00007c50 limit=0x001f"

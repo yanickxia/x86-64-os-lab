@@ -23,7 +23,7 @@ QEMU_RESET_FLAGS := \
 
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
-DEBUGCON_EXPECTED := HelloPT
+DEBUGCON_EXPECTED := HelloPTL
 
 QEMU_BOOT_FLAGS := \
 	-machine pc \
@@ -38,7 +38,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message inspect-gdt inspect-protected check-segments check-call check-a20 check-gdt check-protected check-page-tables
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode
 
 check-tools:
 	@set -e; \
@@ -104,15 +104,25 @@ disassemble-boot: boot
 	@dd if=$(BOOT_BIN) bs=1 skip=0x90 count=0x20 status=none | ndisasm -w -b 32 -o 0x7c90 -
 	@printf '%s\n' '== 32-bit page-table setup (from 0x7cb0) =='
 	@dd if=$(BOOT_BIN) bs=1 skip=0xb0 count=0x2e status=none | ndisasm -w -b 32 -o 0x7cb0 -
+	@printf '%s\n' '== 32-bit long-mode switch (0x7cf0-0x7d20) =='
+	@dd if=$(BOOT_BIN) bs=1 skip=0xf0 count=0x31 status=none | ndisasm -w -b 32 -o 0x7cf0 -
+	@printf '%s\n' '== 64-bit long-mode entry (from 0x7d30) =='
+	@dd if=$(BOOT_BIN) bs=1 skip=0x130 count=0x06 status=none | ndisasm -w -b 64 -o 0x7d30 -
 
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
 inspect-gdt: boot
-	@xxd -g 1 -s 0x50 -l 30 $(BOOT_BIN)
+	@printf '%s\n' '== four GDT entries at 0x7c50 =='
+	@xxd -g 1 -s 0x50 -l 32 $(BOOT_BIN)
+	@printf '%s\n' '== GDTR pseudo-descriptor at 0x7ce0 =='
+	@xxd -g 1 -s 0xe0 -l 6 $(BOOT_BIN)
 
 inspect-protected: boot
 	@xxd -g 1 -s 0x70 -l 64 $(BOOT_BIN)
+
+inspect-long-mode: boot
+	@xxd -g 1 -s 0xf0 -l 70 $(BOOT_BIN)
 
 check-segments: check-boot
 	@zsh scripts/check-segments.zsh $(BOOT_BIN)
@@ -131,3 +141,6 @@ check-protected: check-boot
 
 check-page-tables: check-boot
 	@zsh scripts/check-page-tables.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)
+
+check-long-mode: check-boot
+	@zsh scripts/check-long-mode.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)

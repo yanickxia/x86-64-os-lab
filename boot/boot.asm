@@ -7,6 +7,11 @@ PML4_ADDR equ 0x00001000
 PDPT_ADDR equ 0x00002000
 PD_ADDR equ 0x00003000
 PAGE_TABLE_DWORDS equ (3 * 4096) / 4
+IA32_EFER_MSR equ 0xc0000080
+CR4_PAE equ 1 << 5
+EFER_LME equ 1 << 8
+CR0_PG equ 1 << 31
+CODE64_SELECTOR equ 3 << 3
 
 
 start:
@@ -62,11 +67,9 @@ gdt:
     dq 0x0000000000000000
     dq 0x00cf9a000000ffff
     dq 0x00cf92000000ffff
+    ; 64-bit code: L=1, D=0. Selector is GDT index 3 = 0x18.
+    dq 0x00af9a000000ffff
 gdt_end:
-
-gdt_descriptor:
-    dw gdt_end - gdt - 1
-    dd gdt
 
 times 0x70 - ($ - $$) db 0
 
@@ -98,8 +101,7 @@ protected_mode_entry:
     mov al, 'T'
     out 0xe9, al
 
-.protected_mode_hang:
-    jmp .protected_mode_hang
+    jmp enable_long_mode
 
 times 0xb0 - ($ - $$) db 0x90
 
@@ -116,6 +118,48 @@ setup_page_tables:
     mov dword [PDPT_ADDR], PD_ADDR | 0x001 | 0x002
     mov dword [PD_ADDR], 0 | 0x001 | 0x002 | 0x080
     ret
+
+times 0xe0 - ($ - $$) db 0
+
+gdt_descriptor:
+    dw gdt_end - gdt - 1
+    dd gdt
+
+times 0xf0 - ($ - $$) db 0x90
+
+bits 32
+enable_long_mode:
+    ; Enable CR4.PAE.
+    mov eax, cr4
+    or eax, CR4_PAE
+    mov cr4, eax
+
+    ; CR3
+    mov eax, PML4_ADDR
+    mov cr3, eax
+
+    ; EFER.LME
+    mov ecx, IA32_EFER_MSR
+    rdmsr
+    or eax, EFER_LME
+    wrmsr
+
+    ; CR0.PG
+    mov eax, cr0
+    or eax, CR0_PG
+    mov cr0, eax
+
+    ; far jump 序列
+    jmp CODE64_SELECTOR:long_mode_entry
+
+times 0x130 - ($ - $$) db 0x90
+
+bits 64
+long_mode_entry:
+    mov al, 'L'
+    out 0xe9, al
+.long_mode_hang:
+    jmp .long_mode_hang
 
 times 510 - ($ - $$) db 0
 dw 0xaa55

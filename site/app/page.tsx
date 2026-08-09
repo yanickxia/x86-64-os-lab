@@ -43,6 +43,7 @@ export default function Home() {
             <li><span>0x00007bfe</span><strong>REAL STACK</strong></li>
             <li><span>port 0x00e9</span><strong>FIRST OUTPUT</strong></li>
             <li><span>0x00001000</span><strong>PML4 ROOT</strong></li>
+            <li><span>0x00007d30</span><strong>CS64 ENTRY</strong></li>
           </ol>
           <div className="boot-trace__summary">
             <strong>{course.completedCount}</strong>
@@ -68,12 +69,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>long mode 页表结构已准备</h2>
-            <p>从 CPU 复位到 32 位保护模式，再到低 2 MiB 恒等映射，每一步都已留下可重复验证的机器证据。</p>
+            <h2>64 位 long mode 里程碑已完成</h2>
+            <p>从 CPU 复位、保护模式和四级页表，到激活分页并以 CS64 执行，每一步都已留下可重复验证的机器证据。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>RESET → PML4 → 2 MiB PAGE</code>
+            <code>RESET → PAGING → CS64</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

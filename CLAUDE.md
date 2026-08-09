@@ -59,9 +59,10 @@ make check-debugcon      # 端口 0xe9 收到预期输出
 make check-segments      # DS=ES=SS=0, SP=0x7c00
 make check-call          # call/ret 的返回地址
 make check-a20           # A20 已开启
-make check-gdt           # GDTR base=0x7c50 limit=0x0017
-make check-protected     # CR0.PE=1, CS=0x0008, DS=SS=0x0010
+make check-gdt           # GDTR base=0x7c50 limit=0x001f
+make check-protected     # CR0.PE=1，32/64 位最终状态均保持段基础不变量
 make check-page-tables   # PML4[0] → PDPT[0] → 2 MiB identity map
+make check-long-mode     # CR4.PAE、CR3、EFER.LME/LMA、CR0.PG 与 CS64
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -107,6 +108,9 @@ npm run lint
 | `0x7c70` | `enter_protected_mode` | 16 位 CR0.PE 与 far jump 切换序列          |
 | `0x7c90` | `protected_mode_entry` | CS.D=1 后的 32 位代码入口              |
 | `0x7cb0` | `setup_page_tables` | 清零并连接 `0x1000..0x3fff` 的页表       |
+| `0x7ce0` | `gdt_descriptor` | 四项 GDT 的 6 字节 GDTR 伪描述符             |
+| `0x7cf0` | `enable_long_mode` | 第 11 课的 32 位 long-mode 切换序列         |
+| `0x7d30` | `long_mode_entry` | `CS.L=1` 后按 64 位解码的入口              |
 
 `main` 区（`0x7c10..0x7c30`）依然只剩 2 字节；第 9 课用 short jump 转到 `0x7c70` 的切换序列，因此保留了旧课的固定地址证据。后续扩展启动代码时，不能让新区域与 message、GDT 或启动扇区签名重叠。
 
@@ -145,6 +149,6 @@ npm run lint
 
 ## 当前进度
 
-第 0–10 课已结课。CPU 已设置 `CR0.PE=1`，通过 far jump 运行 32 位代码；物理地址 `0x1000/0x2000/0x3000` 中已建立 PML4、PDPT 和 PD，三个关键 entry 分别为 `0x2003`、`0x3003`、`0x0083`，形成低 2 MiB 恒等映射。
+第 0–11 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后，三个 entry 的 Accessed 位会被置 1。
 
-下一课再设置 PAE、加载 `CR3`、设置 `EFER.LME` 与打开 `CR0.PG`，让 CPU 第一次真正遍历这些页表并进入 long mode。
+下一阶段突破 512 字节启动扇区限制，加载独立的 64 位 kernel，建立 linker script、System V x86-64 ABI 与 C 运行环境。

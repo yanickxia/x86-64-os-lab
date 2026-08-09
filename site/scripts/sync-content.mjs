@@ -95,6 +95,14 @@ const lessonMeta = [
     summary: "构造 PML4、PDPT 和 PD，用 2 MiB large page 为 long mode 准备低地址恒等映射。",
     takeaway: "PML4 → PDPT → 2 MiB page",
   },
+  {
+    id: "11",
+    slug: "lesson-11",
+    phase: "长模式切换",
+    status: "completed",
+    summary: "启用 PAE，加载 CR3 与 EFER.LME，打开分页并通过 64 位代码段进入 long mode。",
+    takeaway: "PAE · CR3 · EFER.LME · CR0.PG · CS64",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

@@ -172,3 +172,42 @@ rep stosd       ; 清零 1024 × 4 = 4096 字节
 - [NASM Effective Addresses](https://www.nasm.us/doc/nasm03.html#section-3.3)
 - [NASM `REP` Prefixes](https://www.nasm.us/doc/nasm04.html#section-4.2)
 - Intel SDM Volume 2：`CLD` 与 `STOS`
+
+## 8. 汇编期位掩码、控制寄存器与 MSR
+
+NASM 表达式可以在汇编期计算位掩码：
+
+```asm
+FEATURE_BIT equ 1 << 5   ; 汇编器计算为 0x20，不生成移位指令
+```
+
+控制寄存器不能直接接收 immediate，通常先通过通用寄存器做读—改—写：
+
+```asm
+mov eax, cr4
+or eax, FEATURE_BIT
+mov cr4, eax
+```
+
+`CR0/CR3/CR4` 属于体系结构控制寄存器；MSR 则通过编号访问。`RDMSR/WRMSR` 的固定接口是：
+
+```text
+ECX      = MSR number
+EDX:EAX  = 64-bit value
+```
+
+例如保留一个 MSR 的其他位、只设置低 32 位中的某个 feature：
+
+```asm
+mov ecx, 0xc0000080
+rdmsr
+or eax, 1 << 8
+wrmsr
+```
+
+这些都是特权指令；操作系统内核可以使用，普通用户程序不能随意执行。`bits 64` 与之前的 `bits 16/32` 一样，只控制 NASM 的编码假设；真正的 CPU 模式由控制寄存器、MSR 和 `CS` descriptor 决定。
+
+参考：
+
+- [NASM Expressions](https://www.nasm.us/doc/nasm03.html#section-3.5)
+- [Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110)：`MOV—Control Registers`、`RDMSR`、`WRMSR`

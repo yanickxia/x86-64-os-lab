@@ -3,9 +3,9 @@
 set -eu
 
 boot_bin="$1"
-expected_output="${2:-HelloP}"
-monitor_socket="build/protected-monitor-${$}.sock"
-output_file="build/protected-debugcon-${$}.log"
+expected_output="${2:-HelloPTL}"
+monitor_socket="build/long-mode-monitor-${$}.sock"
+output_file="build/long-mode-debugcon-${$}.log"
 qemu_pid=""
 
 cleanup() {
@@ -43,13 +43,13 @@ for attempt in {1..50}; do
 done
 
 if [[ ! -S "$monitor_socket" ]]; then
-    print -u2 "protected-mode check: QEMU did not create the monitor socket"
+    print -u2 "long-mode check: QEMU did not create the monitor socket"
     exit 1
 fi
 
 actual_output="$(< "$output_file")"
 if [[ "$actual_output" != "$expected_output" ]]; then
-    print -u2 "protected-mode check: expected synchronization output '${expected_output}', got '${actual_output}'"
+    print -u2 "long-mode check: expected synchronization output '${expected_output}', got '${actual_output}'"
     exit 1
 fi
 
@@ -58,27 +58,25 @@ qemu_pid=""
 
 cr0_tail="${monitor_output#*CR0=}"
 cs_tail="${monitor_output#*CS =}"
-ds_tail="${monitor_output#*DS =}"
-ss_tail="${monitor_output#*SS =}"
+efer_tail="${monitor_output#*EFER=}"
 cr0_state="${cr0_tail%%$'\r'*}"
 cs_state="${cs_tail%%$'\r'*}"
-ds_state="${ds_tail%%$'\r'*}"
-ss_state="${ss_tail%%$'\r'*}"
+efer_state="${efer_tail%%$'\r'*}"
 
-if [[ ("$monitor_output" != *"CR0=00000011"* && "$monitor_output" != *"CR0=80000011"*) || \
-      ("$monitor_output" != *"CS =0008"* && "$monitor_output" != *"CS =0018"*) || \
-      "$monitor_output" != *"DS =0010"* || \
-      "$monitor_output" != *"SS =0010"* ]]; then
-    print -u2 "protected-mode check: expected CR0.PE=1, CS=0x0008/0x0018, DS=SS=0x0010"
-    print -u2 "protected-mode check: CR0=$cr0_state"
-    print -u2 "protected-mode check: CS =$cs_state"
-    print -u2 "protected-mode check: DS =$ds_state"
-    print -u2 "protected-mode check: SS =$ss_state"
+if [[ "$monitor_output" != *"CR0=80000011"* || \
+      "$monitor_output" != *"CR3=0000000000001000"* || \
+      "$monitor_output" != *"CR4=00000020"* || \
+      "$monitor_output" != *"EFER=0000000000000500"* || \
+      "$monitor_output" != *"CS =0018"* || \
+      "$monitor_output" != *"CS64"* ]]; then
+    print -u2 "long-mode check: expected CR0.PG=1, CR3=0x1000, CR4.PAE=1, EFER.LME=LMA=1, CS=0x0018 CS64"
+    print -u2 "long-mode check: CR0=$cr0_state"
+    print -u2 "long-mode check: CS =$cs_state"
+    print -u2 "long-mode check: EFER=$efer_state"
     exit 1
 fi
 
-print "protected-mode foundation check passed: CR0.PE=1, CS=0x0008/0x0018, DS=SS=0x0010"
-print "protected-mode state: CR0=$cr0_state"
-print "protected-mode state: CS =$cs_state"
-print "protected-mode state: DS =$ds_state"
-print "protected-mode state: SS =$ss_state"
+print "long-mode check passed: CPU is executing 64-bit code"
+print "long-mode state: CR0=$cr0_state"
+print "long-mode state: CS =$cs_state"
+print "long-mode state: EFER=$efer_state"
