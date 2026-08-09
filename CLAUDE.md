@@ -61,6 +61,7 @@ make check-call          # call/ret 的返回地址
 make check-a20           # A20 已开启
 make check-gdt           # GDTR base=0x7c50 limit=0x0017
 make check-protected     # CR0.PE=1, CS=0x0008, DS=SS=0x0010
+make check-page-tables   # PML4[0] → PDPT[0] → 2 MiB identity map
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -105,6 +106,7 @@ npm run lint
 | `0x7c50` | `gdt`     | `check-gdt` 断言 GDTR base                               |
 | `0x7c70` | `enter_protected_mode` | 16 位 CR0.PE 与 far jump 切换序列          |
 | `0x7c90` | `protected_mode_entry` | CS.D=1 后的 32 位代码入口              |
+| `0x7cb0` | `setup_page_tables` | 清零并连接 `0x1000..0x3fff` 的页表       |
 
 `main` 区（`0x7c10..0x7c30`）依然只剩 2 字节；第 9 课用 short jump 转到 `0x7c70` 的切换序列，因此保留了旧课的固定地址证据。后续扩展启动代码时，不能让新区域与 message、GDT 或启动扇区签名重叠。
 
@@ -143,6 +145,6 @@ npm run lint
 
 ## 当前进度
 
-第 0–9 课已结课。CPU 已设置 `CR0.PE=1`，通过 far jump 把 `CS=0x08` 和 32 位 code descriptor 装入可见部分与隐藏缓存，并以 `DS=ES=SS=0x10`、`ESP=0x00090000` 停在 32 位保护模式。
+第 0–10 课已结课。CPU 已设置 `CR0.PE=1`，通过 far jump 运行 32 位代码；物理地址 `0x1000/0x2000/0x3000` 中已建立 PML4、PDPT 和 PD，三个关键 entry 分别为 `0x2003`、`0x3003`、`0x0083`，形成低 2 MiB 恒等映射。
 
-下一阶段按 [docs/roadmap.md](docs/roadmap.md) 建立页表、开启 PAE 和 long mode，然后搭建 C 运行环境。
+下一课再设置 PAE、加载 `CR3`、设置 `EFER.LME` 与打开 `CR0.PG`，让 CPU 第一次真正遍历这些页表并进入 long mode。

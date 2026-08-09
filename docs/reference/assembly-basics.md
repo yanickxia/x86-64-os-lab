@@ -135,3 +135,40 @@ AL → I/O port 0xe9
 2. NASM 文档：确认源代码语法、伪指令和输出格式。
 3. Intel SDM Volume 2：确认 CPU 指令的操作数、行为、标志位和异常。
 4. Intel SDM Volume 1/3：确认寄存器、运行模式、内存和系统编程机制。
+
+## 7. 内存操作数宽度与 `REP STOSD`
+
+`EQU` 可以为数值定义汇编期常量：
+
+```asm
+PAGE_SIZE equ 4096
+TABLE_ADDR equ 0x1000
+```
+
+它不会生成机器码，也不会分配内存。NASM 只在遇到 `PAGE_SIZE` 或 `TABLE_ADDR` 时以对应数值替换。因此“`TABLE_ADDR equ 0x1000`”不会让 `0x1000` 处自动出现一张表；代码仍必须在运行时初始化那段 RAM。
+
+当内存操作数的宽度无法从另一个寄存器操作数推断时，NASM 需要显式宽度：
+
+```asm
+mov byte  [0x1000], 0x41        ; 写 1 字节
+mov word  [0x1000], 0x1234      ; 写 2 字节
+mov dword [0x1000], 0x12345678  ; 写 4 字节
+```
+
+`STOSD` 把 `EAX` 的 4 字节存入 `ES:EDI`。`REP` 前缀让 CPU 重复执行 `ECX` 次；每次后 `ECX` 减 1，`EDI` 根据 direction flag 增加或减少 4：
+
+```asm
+cld             ; DF=0，后续 EDI 向高地址增长
+xor eax, eax    ; 要写入的 dword 是 0
+mov edi, 0x1000
+mov ecx, 1024
+rep stosd       ; 清零 1024 × 4 = 4096 字节
+```
+
+`REP` 是 instruction prefix；`STOSD` 是 CPU 指令。它们都会生成机器码，不同于 `bits` 这样只影响汇编器的指示。
+
+参考：
+
+- [NASM Effective Addresses](https://www.nasm.us/doc/nasm03.html#section-3.3)
+- [NASM `REP` Prefixes](https://www.nasm.us/doc/nasm04.html#section-4.2)
+- Intel SDM Volume 2：`CLD` 与 `STOS`

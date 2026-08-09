@@ -42,6 +42,7 @@ export default function Home() {
             <li><span>0x00007c00</span><strong>BOOT SECTOR</strong></li>
             <li><span>0x00007bfe</span><strong>REAL STACK</strong></li>
             <li><span>port 0x00e9</span><strong>FIRST OUTPUT</strong></li>
+            <li><span>0x00001000</span><strong>PML4 ROOT</strong></li>
           </ol>
           <div className="boot-trace__summary">
             <strong>{course.completedCount}</strong>
@@ -67,12 +68,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>32 位保护模式里程碑已完成</h2>
-            <p>从 CPU 复位到设置 CR0.PE、远跳转重载 CS，每一步都已留下可重复验证的机器证据。</p>
+            <h2>long mode 页表结构已准备</h2>
+            <p>从 CPU 复位到 32 位保护模式，再到低 2 MiB 恒等映射，每一步都已留下可重复验证的机器证据。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>RESET → PROTECTED MODE</code>
+            <code>RESET → PML4 → 2 MiB PAGE</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

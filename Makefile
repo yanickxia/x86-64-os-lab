@@ -23,7 +23,7 @@ QEMU_RESET_FLAGS := \
 
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
-DEBUGCON_EXPECTED := HelloP
+DEBUGCON_EXPECTED := HelloPT
 
 QEMU_BOOT_FLAGS := \
 	-machine pc \
@@ -38,7 +38,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(BOOT_BIN)
 
-.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message inspect-gdt inspect-protected check-segments check-call check-a20 check-gdt check-protected
+.PHONY: check-tools qemu-reset inspect-reset boot check-boot qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot inspect-message inspect-gdt inspect-protected check-segments check-call check-a20 check-gdt check-protected check-page-tables
 
 check-tools:
 	@set -e; \
@@ -97,11 +97,13 @@ run-debugcon: check-boot
 
 disassemble-boot: boot
 	@printf '%s\n' '== 16-bit startup and real-mode path (0x7c00-0x7c32) =='
-	@dd if=$(BOOT_BIN) bs=1 count=0x33 status=none | ndisasm -b 16 -o 0x7c00 -
+	@dd if=$(BOOT_BIN) bs=1 count=0x33 status=none | ndisasm -w -b 16 -o 0x7c00 -
 	@printf '%s\n' '== 16-bit protected-mode switch (0x7c70-0x7c81) =='
-	@dd if=$(BOOT_BIN) bs=1 skip=0x70 count=0x12 status=none | ndisasm -b 16 -o 0x7c70 -
-	@printf '%s\n' '== 32-bit protected-mode entry (0x7c90-0x7ca4) =='
-	@dd if=$(BOOT_BIN) bs=1 skip=0x90 count=0x15 status=none | ndisasm -b 32 -o 0x7c90 -
+	@dd if=$(BOOT_BIN) bs=1 skip=0x70 count=0x12 status=none | ndisasm -w -b 16 -o 0x7c70 -
+	@printf '%s\n' '== 32-bit protected-mode entry (0x7c90-0x7caf) =='
+	@dd if=$(BOOT_BIN) bs=1 skip=0x90 count=0x20 status=none | ndisasm -w -b 32 -o 0x7c90 -
+	@printf '%s\n' '== 32-bit page-table setup (from 0x7cb0) =='
+	@dd if=$(BOOT_BIN) bs=1 skip=0xb0 count=0x2e status=none | ndisasm -w -b 32 -o 0x7cb0 -
 
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
@@ -126,3 +128,6 @@ check-gdt: check-boot
 
 check-protected: check-boot
 	@zsh scripts/check-protected.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)
+
+check-page-tables: check-boot
+	@zsh scripts/check-page-tables.zsh $(BOOT_BIN) $(DEBUGCON_EXPECTED)

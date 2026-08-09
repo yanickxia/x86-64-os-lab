@@ -1,6 +1,13 @@
 bits 16
 org 0x7c00
 
+; These are physical RAM addresses chosen by our bootloader. EQU defines
+; constants only; setup_page_tables initializes the memory at runtime.
+PML4_ADDR equ 0x00001000
+PDPT_ADDR equ 0x00002000
+PD_ADDR equ 0x00003000
+PAGE_TABLE_DWORDS equ (3 * 4096) / 4
+
 
 start:
     cli
@@ -86,8 +93,29 @@ protected_mode_entry:
     mov al, 'P'
     out 0xe9, al
 
+    call setup_page_tables
+
+    mov al, 'T'
+    out 0xe9, al
+
 .protected_mode_hang:
     jmp .protected_mode_hang
+
+times 0xb0 - ($ - $$) db 0x90
+
+setup_page_tables:
+    ; Clear three 4 KiB pages: PML4, PDPT, and PD.
+    cld
+    xor eax, eax
+    mov edi, PML4_ADDR
+    mov ecx, PAGE_TABLE_DWORDS
+    rep stosd
+
+    ; Link the root to its next levels, then terminate at a 2 MiB leaf.
+    mov dword [PML4_ADDR], PDPT_ADDR | 0x001 | 0x002
+    mov dword [PDPT_ADDR], PD_ADDR | 0x001 | 0x002
+    mov dword [PD_ADDR], 0 | 0x001 | 0x002 | 0x080
+    ret
 
 times 510 - ($ - $$) db 0
 dw 0xaa55

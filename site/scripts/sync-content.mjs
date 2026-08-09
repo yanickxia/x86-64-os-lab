@@ -87,6 +87,14 @@ const lessonMeta = [
     summary: "设置 CR0.PE，通过 far jump 重载 CS，并在 32 位入口建立数据段和栈。",
     takeaway: "CR0.PE · far jump · bits 32",
   },
+  {
+    id: "10",
+    slug: "lesson-10",
+    phase: "分页准备",
+    status: "completed",
+    summary: "构造 PML4、PDPT 和 PD，用 2 MiB large page 为 long mode 准备低地址恒等映射。",
+    takeaway: "PML4 → PDPT → 2 MiB page",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

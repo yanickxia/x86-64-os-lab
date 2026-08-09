@@ -35,8 +35,9 @@ test("renders a finished course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>10<\/strong><span>节已完成/);
-  assert.match(html, /32 位保护模式里程碑已完成/);
+  assert.match(html, /<strong>11<\/strong><span>节已完成/);
+  assert.match(html, /long mode 页表结构已准备/);
+  assert.match(html, /PML4 ROOT/);
   assert.doesNotMatch(html, /下一步：/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
@@ -48,6 +49,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-07", /A20.*1 MiB/is],
     ["/lessons/lesson-08", /GDT.*LGDT.*GDTR/is],
     ["/lessons/lesson-09", /CR0\.PE.*far jump.*bits 32/is],
+    ["/lessons/lesson-10", /PML4.*PDPT.*2 MiB.*恒等映射/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];
