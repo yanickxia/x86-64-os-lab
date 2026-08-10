@@ -188,7 +188,7 @@ npm run lint
 
 第 13 课已把 `KERNEL_LOAD_ADDR` 装入 `RAX`，再用 `JMP r/m64` 把执行权交给独立载荷。绿灯证据是 debugcon 输出 `HelloPTLK`、`RIP=0x1000e`、`CS=0x18`（`CS64`）、`RAX=0x1004b`。
 
-第 14 课作为加速轨道桥接章已由导师完成：ELF64 object、linked `kernel.elf` 与 raw `kernel.bin` 管线已经建立，`.text`、ELF entry 和 `kernel_start` 均为 `0x10000`，运行仍输出 `HelloPTLK`。
+第 14 课已结课：ELF64 object、linked `kernel.elf` 与 raw `kernel.bin` 管线已经建立，`.text`、ELF entry 和 `kernel_start` 均为 `0x10000`，运行仍输出 `HelloPTLK`。
 
 下一课直接引入第一个 C 函数；System V x86-64 ABI 的必要胶水由脚手架提供，只要求理解调用边界、栈对齐和保存约定。
 

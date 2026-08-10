@@ -1,21 +1,5 @@
 # 第 14 课：用 linker script 固定内核的 ELF 地址
 
-> **加速轨道桥接章**：本章的 linker 基础设施由导师直接完成，不再要求逐题填写推演、抄录 ELF header 或记忆 linker script 语法。正文保留为以后调试链接问题时的参考；现在只需掌握下面三个结论，然后进入 C。
-
-必掌握的三个结论：
-
-1. assembler/compiler 先生成带 section、symbol 和 relocation 的 object；linker 再决定最终地址并合成 `kernel.elf`。
-2. ELF 中 `.text` 与 `kernel_start` 声明的地址必须和 bootloader 实际加载、跳转的 `0x10000` 一致。
-3. bootloader 目前读取的是由 `objcopy` 抽出的 raw `kernel.bin`；`kernel.elf` 主要供链接器、符号检查和调试器使用。
-
-本章已由脚手架完成，验收命令是：
-
-```sh
-make check-kernel-elf
-```
-
-以下是可选深入材料，不影响进入下一课。
-
 ## 先修知识
 
 开始前应理解：
