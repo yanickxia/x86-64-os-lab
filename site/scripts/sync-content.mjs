@@ -131,7 +131,7 @@ const lessonMeta = [
     id: "15",
     slug: "lesson-15",
     phase: "阶段复盘",
-    status: "next",
+    status: "completed",
     summary: "不引入新机制：把 reset、BIOS、模式切换、分页、ELF 载荷和 C 前缺口串成一条完整因果链。",
     takeaway: "启动全链路 · C 前状态",
   },
@@ -139,9 +139,17 @@ const lessonMeta = [
     id: "16",
     slug: "lesson-16",
     phase: "架构对照",
-    status: "upcoming",
+    status: "completed",
     summary: "横向比较 x86-64、RV64 RISC-V 与 AArch64，分清 CPU 特有入口代码与操作系统共同抽象。",
     takeaway: "x86-64 ↔ RISC-V ↔ ARM64",
+  },
+  {
+    id: "17",
+    slug: "lesson-17",
+    phase: "阶段考试",
+    status: "completed",
+    summary: "只用判断解释与因果诊断两部分，检验是否真正理解启动、地址转换和 C 前执行环境。",
+    takeaway: "explain · trace · diagnose",
   },
 ];
 

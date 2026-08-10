@@ -35,18 +35,20 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>15<\/strong><span>节已完成/);
+  assert.match(html, /<strong>18<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?17(?:<!-- -->)? 节/);
-  assert.match(html, /NEXT CHECKPOINT/);
-  assert.match(html, /下一步：/);
-  assert.match(html, /阶段复盘/);
+  assert.match(html, /共 (?:<!-- -->)?18(?:<!-- -->)? 节/);
+  assert.match(html, /MILESTONE REACHED/);
+  assert.match(html, /C 内核运行环境已就绪/);
+  assert.match(html, /BOOT → ELF → C KERNEL/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
   assert.match(html, /href="\/lessons\/lesson-15"/);
   assert.match(html, /href="\/lessons\/lesson-16"/);
+  assert.match(html, /href="\/lessons\/lesson-17"/);
+  assert.doesNotMatch(html, /下一步：/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -65,6 +67,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-15", /恒等映射.*triple fault.*IDT.*OSTEP/is],
     ["/lessons/lesson-15", /完整路径.*交给 C 前.*FFFF:0010.*空指针解引用通常不会触发.*#PF/is],
     ["/lessons/lesson-16", /x86-64.*RISC-V.*AArch64.*CR3.*satp.*VBAR_EL1.*内存模型/is],
+    ["/lessons/lesson-17", /100 分.*判断并解释.*因果链与诊断.*A20.*B6/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];
@@ -74,6 +77,12 @@ test("renders lesson, roadmap, and reference routes", async () => {
     assert.equal(response.status, 200, pathname);
     assert.match(await response.text(), expected, pathname);
   }
+
+  const examResponse = await render("/lessons/lesson-17");
+  const examHtml = await examResponse.text();
+  assert.match(examHtml, /<strong>A1\.<\/strong>.*<strong>A10\.<\/strong>.*<strong>A20\.<\/strong>/s);
+  assert.doesNotMatch(examHtml, /<h2[^>]*>C\.|<h2[^>]*>D\./);
+  assert.doesNotMatch(examHtml, /标准答案|参考答案/);
 });
 
 test("keeps Markdown as the canonical source", async () => {

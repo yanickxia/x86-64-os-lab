@@ -190,7 +190,7 @@ npm run lint
 
 第 14 课已结课：ELF64 object、linked `kernel.elf` 与 raw `kernel.bin` 管线已经建立，`.text`、ELF entry 和 `kernel_start` 均为 `0x10000`，运行仍输出 `HelloPTLK`。
 
-第 15 课完成 x86 启动总结后，第 16 课横向对照 x86-64、RV64 RISC-V 与 AArch64；两课都不设置红灯/绿灯。第 17 课再引入第一个 C 函数，System V x86-64 ABI 的必要胶水由脚手架提供，只要求理解调用边界、栈对齐和保存约定。
+第 15 课完成 x86 启动总结后，第 16 课横向对照 x86-64、RV64 RISC-V 与 AArch64；两课都不设置红灯/绿灯。第 17 课是理解导向的阶段考试，第 18 课再引入第一个 C 函数。System V x86-64 ABI 的必要胶水由脚手架提供，只要求理解调用边界、栈对齐和保存约定。
 
 ### 第 15 课：启动总结（纯复盘章）
 
@@ -208,6 +208,12 @@ npm run lint
 
 横向比较 x86-64、RV64 RISC-V（S-mode/Sv39）与 AArch64 A-profile。主线是 ISA/platform/ABI 三层边界，以及 privilege、page-table root、trap vector、fault state、TLB maintenance、system call、context switch、memory model 和 per-CPU data 的角色映射。
 
-本课不新增代码、命令或验收结果，也不要求背三套寄存器名。学习记录只总结：x86 特有历史路径、三种架构共同 OS 机制、xv6 概念到 x86 的角色翻译、移植时的 portable/arch-specific 边界。第一个 C 函数顺延到第 17 课。
+本课不新增代码、命令或验收结果，也不要求背三套寄存器名。学习记录只总结：x86 特有历史路径、三种架构共同 OS 机制、xv6 概念到 x86 的角色翻译、移植时的 portable/arch-specific 边界。
 
-第 16 课专门建立跨架构角色映射；第 17 课起，"OS 视角""对照实现（xv6/Linux/JOS）""设计题""配套阅读"四个槽位常驻。帧分配器阶段开始让学生真正选择并论证数据结构。
+### 第 17 课：理解导向阶段考试
+
+覆盖第 0–16 课，共 100 分，只保留两部分：A 判断并解释 40 分（A1–A20），B 因果链与诊断 60 分（B1–B6）。不再单独考跨架构迁移或 portable/arch-specific 边界。第一遍不查讲义、不跑命令，保留原始答案；导师审阅后再针对薄弱点取证修正。只写对错不能得满分，不提供答案 key 文件。
+
+第 17 课已按加速轨道结课：第一遍诊断分为 62/100，判断结论大多正确，薄弱点集中在完整因果链。导师已在 `notes/note-17.md` 的“审阅后修正”中补齐 `CALL/RET`、模式切换、五套地址坐标、诊断证据链、triple fault、ELF 偶然可运行及最小 C 环境。该分数只用于定位，不再阻塞 OS 主线。
+
+第 18 课起，"OS 视角""对照实现（xv6/Linux/JOS）""设计题""配套阅读"四个槽位常驻。帧分配器阶段开始让学生真正选择并论证数据结构。
