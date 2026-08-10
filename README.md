@@ -30,3 +30,17 @@ make check-tools
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
 常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)。
+
+
+
+## 参考资料
+- [MIT 6.828 课程](https://pdos.csail.mit.edu/6.828/2018/labs/)
+- [OSDev Wiki](https://wiki.osdev.org/)
+- [JOS 课程](https://github.com/phlalx/jos)
+- [Awsome Courses](https://github.com/forthespada/Awsome-Courses)
+- [OS](https://github.com/aminkhani/OS)
+- [os-tutorial](https://github.com/cfenollosa/os-tutorial)
+- [os-dev](https://github.com/cpey/os-dev)
+- [riscv](https://pdos.csail.mit.edu/6.1810/2025/xv6/book-riscv-rev5.pdf)
+- [Operating Systems: Three Easy Pieces](https://pages.cs.wisc.edu/~remzi/OSTEP/)
+- [MIT 6.828 课程](https://pdos.csail.mit.edu/6.828/2018/labs/)
