@@ -127,6 +127,22 @@ const lessonMeta = [
     summary: "把独立载荷构建成 ELF64 executable，用 linker script 让 entry、.text 与 symbols 匹配真实加载地址 0x10000。",
     takeaway: "ELF64 · linker script · VMA 0x10000",
   },
+  {
+    id: "15",
+    slug: "lesson-15",
+    phase: "阶段复盘",
+    status: "next",
+    summary: "不引入新机制：把 reset、BIOS、模式切换、分页、ELF 载荷和 C 前缺口串成一条完整因果链。",
+    takeaway: "启动全链路 · C 前状态",
+  },
+  {
+    id: "16",
+    slug: "lesson-16",
+    phase: "架构对照",
+    status: "upcoming",
+    summary: "横向比较 x86-64、RV64 RISC-V 与 AArch64，分清 CPU 特有入口代码与操作系统共同抽象。",
+    takeaway: "x86-64 ↔ RISC-V ↔ ARM64",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

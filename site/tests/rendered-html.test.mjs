@@ -38,13 +38,15 @@ test("renders the current course homepage", async () => {
   assert.match(html, /<strong>15<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?15(?:<!-- -->)? 节/);
-  assert.match(html, /C 内核运行环境已就绪/);
-  assert.match(html, /BOOT → ELF → C KERNEL/);
+  assert.match(html, /共 (?:<!-- -->)?17(?:<!-- -->)? 节/);
+  assert.match(html, /NEXT CHECKPOINT/);
+  assert.match(html, /下一步：/);
+  assert.match(html, /阶段复盘/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
-  assert.doesNotMatch(html, /下一步：/);
+  assert.match(html, /href="\/lessons\/lesson-15"/);
+  assert.match(html, /href="\/lessons\/lesson-16"/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -60,6 +62,9 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-12", /INT 13h.*ES:BX.*0x10000.*sector 2/is],
     ["/lessons/lesson-13", /JMP rel32.*绝对间接跳转.*CS64/is],
     ["/lessons/lesson-14", /ELF64.*linker script.*location counter.*VMA.*objcopy/is],
+    ["/lessons/lesson-15", /恒等映射.*triple fault.*IDT.*OSTEP/is],
+    ["/lessons/lesson-15", /完整路径.*交给 C 前.*FFFF:0010.*空指针解引用通常不会触发.*#PF/is],
+    ["/lessons/lesson-16", /x86-64.*RISC-V.*AArch64.*CR3.*satp.*VBAR_EL1.*内存模型/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

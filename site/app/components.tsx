@@ -33,11 +33,16 @@ export function SiteFooter() {
 }
 
 export function StatusBadge({ status }: { status: Lesson["status"] }) {
-  const complete = status === "completed";
+  const display = status === "completed"
+    ? { className: "is-complete", icon: "✓", label: "已完成" }
+    : status === "next"
+      ? { className: "is-next", icon: "→", label: "下一课" }
+      : { className: "is-upcoming", icon: "·", label: "随后" };
+
   return (
-    <span className={`status-badge ${complete ? "is-complete" : "is-next"}`}>
-      <span aria-hidden="true">{complete ? "✓" : "→"}</span>
-      {complete ? "已完成" : "下一课"}
+    <span className={`status-badge ${display.className}`}>
+      <span aria-hidden="true">{display.icon}</span>
+      {display.label}
     </span>
   );
 }

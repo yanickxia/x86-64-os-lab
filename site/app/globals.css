@@ -351,6 +351,11 @@ pre,
   background: #f1d6c1;
 }
 
+.status-badge.is-upcoming {
+  color: #53606c;
+  background: #e7ebee;
+}
+
 .section {
   padding-block: 120px;
 }

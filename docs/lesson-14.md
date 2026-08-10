@@ -153,7 +153,7 @@ SECTIONS
 
 assembler 只能知道单个输入文件内部的相对布局，不知道所有输入文件最终排在哪里。linker 的职责就是把多个 relocatable object 合并，解析 symbol reference、应用 relocation，并决定最终地址。
 
-历史上，这种分工让大型程序能够分别编译：修改一个 C 文件不必重新汇编整个系统。对我们而言，它还有一个更直接的意义——下一课的 C 编译器会输出 ELF object，因此必须先建立 linker 这一层。
+历史上，这种分工让大型程序能够分别编译：修改一个 C 文件不必重新汇编整个系统。对我们而言，它还有一个更直接的意义——后续 C 编译器会输出 ELF object，因此必须先建立 linker 这一层。
 
 ## 2. 三个产物分别是什么
 
@@ -280,7 +280,7 @@ jmp kernel_hang
 
 relative displacement 只取决于两个位置之间的距离。整段代码从链接地址 0 平移到实际地址 `0x10000`，距离没有变化，所以恰好仍能运行。
 
-这不表示错误的 ELF metadata 无害。下一课加入 C 后，代码会引用其他 symbol、全局数据或 relocation；linker 若按错误地址修补这些值，运行时就会访问错误位置。即使当前运行输出绿色，本课的新检查也必须保持红色。
+这不表示错误的 ELF metadata 无害。后续加入 C 后，代码会引用其他 symbol、全局数据或 relocation；linker 若按错误地址修补这些值，运行时就会访问错误位置。即使当前运行输出绿色，本课的新检查也必须保持红色。
 
 这是一条重要的测试原则：
 
@@ -353,7 +353,7 @@ make check-long-mode
 5. 为什么红灯 ELF 地址全错，`HelloPTLK` 与 `RIP=0x1000e` 却仍然正确？加入绝对 symbol reference 后可能发生什么？
 6. `ENTRY(kernel_start)` 改变了什么？为什么它既没有生成跳转，也没有被当前 bootloader 使用？
 7. `objcopy -O binary` 丢掉了哪些信息、保留了什么？为什么本课红绿两种 VMA 都产生 512 字节文件？
-8. 这条 ELF 构建管线如何为下一课的 C 函数铺路？assembler、compiler 与 linker 将如何分工？
+8. 这条 ELF 构建管线如何为后续 C 函数铺路？assembler、compiler 与 linker 将如何分工？
 
 ## 完成标准
 
