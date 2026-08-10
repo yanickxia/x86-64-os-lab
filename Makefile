@@ -6,7 +6,10 @@ TOOLS := \
 	mcopy \
 	x86_64-elf-gcc \
 	x86_64-elf-ld \
+	x86_64-elf-objcopy \
 	x86_64-elf-objdump \
+	x86_64-elf-readelf \
+	x86_64-elf-nm \
 	x86_64-elf-gdb \
 	socat
 
@@ -24,6 +27,9 @@ QEMU_RESET_FLAGS := \
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
 KERNEL_SRC := kernel/payload.asm
+KERNEL_LINKER := kernel/linker.ld
+KERNEL_OBJ := build/kernel.o
+KERNEL_ELF := build/kernel.elf
 KERNEL_BIN := build/kernel.bin
 OS_IMAGE := build/os.img
 FLOPPY_SECTORS := 2880
@@ -48,7 +54,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry
+.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry check-kernel-elf
 
 check-tools:
 	@set -e; \
@@ -75,9 +81,15 @@ $(BOOT_BIN): $(BOOT_SRC)
 	@mkdir -p build
 	@nasm -f bin -o $@ $<
 
-$(KERNEL_BIN): $(KERNEL_SRC)
+$(KERNEL_OBJ): $(KERNEL_SRC)
 	@mkdir -p build
-	@nasm -f bin -o $@ $<
+	@nasm -f elf64 -g -F dwarf -o $@ $<
+
+$(KERNEL_ELF): $(KERNEL_OBJ) $(KERNEL_LINKER)
+	@x86_64-elf-ld -nostdlib -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJ)
+
+$(KERNEL_BIN): $(KERNEL_ELF)
+	@x86_64-elf-objcopy -O binary $< $@
 
 $(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
 	@dd if=/dev/zero of=$@ bs=512 count=$(FLOPPY_SECTORS) status=none
@@ -85,6 +97,8 @@ $(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
 	@dd if=$(KERNEL_BIN) of=$@ bs=512 seek=1 conv=notrunc status=none
 
 boot: $(BOOT_BIN)
+
+kernel-elf: $(KERNEL_ELF)
 
 image: $(OS_IMAGE)
 
@@ -143,6 +157,14 @@ disassemble-kernel: $(KERNEL_BIN)
 	@printf '%s\n' '== payload code at 0x1000a-0x1000f =='
 	@dd if=$(KERNEL_BIN) bs=1 skip=10 count=6 status=none | ndisasm -w -b 64 -o 0x1000a -
 
+inspect-kernel-elf: $(KERNEL_ELF)
+	@printf '%s\n' '== ELF header =='
+	@x86_64-elf-readelf -h $(KERNEL_ELF)
+	@printf '%s\n' '== linked symbols =='
+	@x86_64-elf-nm -n $(KERNEL_ELF)
+	@printf '%s\n' '== section headers =='
+	@x86_64-elf-objdump -h $(KERNEL_ELF)
+
 inspect-image: image
 	@printf '%s\n' '== boot signature and start of sector 2 =='
 	@xxd -g 1 -s 0x1f0 -l 48 $(OS_IMAGE)
@@ -188,3 +210,6 @@ check-kernel-load: check-image
 
 check-kernel-entry: check-image
 	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+
+check-kernel-elf: $(KERNEL_ELF) $(KERNEL_BIN)
+	@zsh scripts/check-kernel-elf.zsh $(KERNEL_ELF) $(KERNEL_BIN)

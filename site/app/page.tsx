@@ -69,12 +69,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>执行权已交给独立载荷</h2>
-            <p>CPU 已从启动扇区跳到 0x10000 的独立载荷，并用 HelloPTLK、RIP=0x1000e 与 CS64 留下可重复的控制流证据。</p>
+            <h2>C 内核运行环境已就绪</h2>
+            <p>启动、分页、磁盘载荷、控制权转移与 ELF 链接地址已经闭环验证；下一阶段从架构桥接转向 C 中的操作系统机制。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>CS64 → 0x10000 → RIP 0x1000e</code>
+            <code>BOOT → ELF → C KERNEL</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

@@ -32,13 +32,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **“实验前预测”里的错误答案必须保留**，它记录了学习过程，不因此扣分。只批改“我的实现”“绿灯原始观察”“我的解释”。
 - 遇到用户对课程本身的质疑，优先当成课程设计缺陷处理，而不是让他"自己查"。第 3 课因为没讲 NASM 语法和 `AX`/`AL` 就布置练习被质疑过，第 8 课因为 GDT 的说明不够有历史脉络被质疑过，两次都改了教材。
 
+### 加速轨道（第 14 课起）
+
+用户的目标是学习操作系统，而不是把 x86 汇编、opcode、ELF 字段或 CPU 厂商细节本身学成主线：
+
+- linker/ABI/架构启动胶水可作为 bridge infrastructure 由导师实现并验收，不强制用户逐项填写传统实验笔记。
+- 只有异常入口、上下文切换、系统调用等不可避免的边界保留少量汇编；优先提供模板，让用户解释状态和不变量。
+- 不为单纯的 instruction encoding、寄存器位或工具字段各开一课，除非它直接影响 OS 机制或正在诊断真实故障。
+- 主线课优先覆盖 C 内核、异常、内存管理、用户态、进程/调度、并发与文件系统。
+- bridge 章节可保留深入正文作为参考，但必做结论最多 3–4 条，并由自动化检查验收。
+
 ## 课程规则（来自 README，写代码前必须满足）
 
 - 每课只引入一个主要机制。
 - 每课在练习前列出先修知识，并讲清本课新增的最小语法与机器模型。
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
 - 写代码前先预测机器状态和输出。
-- “实验前预测”必须出现在正文公布精确实验结果之前，并在页面内给齐推演所需的当前源码片段、固定地址、已知指令长度和前置状态；不能要求学生从未展示的“当前代码”猜答案。尚未讲授、无法精确推出的内容要明确标成“允许猜测”，预测错误必须保留。
+- “实验前预测/推演”必须出现在运行和正文公布精确结果之前，并在页面内给齐当前源码、地址、工具规则与前置状态；每一题都必须能从显式输入推出“输入 → 结论”，不能要求学生猜未展示的代码或工具隐藏行为。若无法推出，应补输入或移到实验后观察题，而不是标成猜测题。学生已经写下的错误答案必须原样保留，随后另做复盘。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
 - 每个里程碑结束时留一个干净提交。
 
@@ -68,6 +78,7 @@ make check-page-tables   # PML4[0] → PDPT[0] → 2 MiB identity map
 make check-long-mode     # CR4.PAE、CR3、EFER.LME/LMA、CR0.PG 与 CS64
 make check-kernel-load   # 镜像 sector 2 已被 BIOS 读到物理地址 0x10000
 make check-kernel-entry  # 执行权已交给载荷：RIP=0x1000e、CS 仍为 0x18（CS64）
+make check-kernel-elf    # ELF entry、.text VMA 与 symbols 均匹配加载地址 0x10000
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -77,6 +88,7 @@ make check-kernel-entry  # 执行权已交给载荷：RIP=0x1000e、CS 仍为 0x
 ```sh
 make disassemble-boot    # 按 16/32 位执行区域分段反汇编，看机器码和控制流
 make disassemble-kernel  # 按 64 位规则反汇编 0x10000 的独立 payload
+make inspect-kernel-elf  # 查看 ELF header、symbols 与 section 地址/文件偏移
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
@@ -101,7 +113,7 @@ npm run lint
 
 ## 架构
 
-### boot/boot.asm：唯一的实现文件，用固定地址布局
+### boot/boot.asm：启动扇区的固定地址布局
 
 `times 0xNN - ($ - $$) db 0x90` 把关键符号钉在固定地址，因为 GDB 脚本和 check 脚本硬编码了这些地址：
 
@@ -123,6 +135,12 @@ npm run lint
 `start` 在 `0x7c0d` 用 3 字节 near call 调用固定在 `0x7d50` 的 `load_kernel`，所以 `main` 仍保持在 `0x7c10`。`main` 区（`0x7c10..0x7c30`）依然只剩 2 字节；第 9 课用 short jump 转到 `0x7c70` 的切换序列，因此保留了旧课的固定地址证据。后续扩展启动代码时，不能让新区域与 message、GDT 或启动扇区签名重叠。
 
 `org 0x7c00` 只告诉 NASM 假设代码位于该地址以便算标签，不负责加载；填充一律用 `times 510 - ($ - $$) db 0` 这种动态表达式，不要写死字节数。
+
+### kernel/：独立载荷的 ELF 构建管线
+
+第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`，`x86_64-elf-ld -T kernel/linker.ld` 链接为 `build/kernel.elf`，再由 `objcopy -O binary` 抽出 512 字节 `build/kernel.bin`。镜像和 BIOS loader 仍只消费 raw `kernel.bin`；ELF 用于 symbols、sections、relocations 与后续 C object 链接。
+
+当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。linker script 的 location counter 是这些地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
@@ -170,4 +188,24 @@ npm run lint
 
 第 13 课已把 `KERNEL_LOAD_ADDR` 装入 `RAX`，再用 `JMP r/m64` 把执行权交给独立载荷。绿灯证据是 debugcon 输出 `HelloPTLK`、`RIP=0x1000e`、`CS=0x18`（`CS64`）、`RAX=0x1004b`。
 
-之后建立 linker script、System V x86-64 ABI 与 C 运行环境。
+第 14 课作为加速轨道桥接章已由导师完成：ELF64 object、linked `kernel.elf` 与 raw `kernel.bin` 管线已经建立，`.text`、ELF entry 和 `kernel_start` 均为 `0x10000`，运行仍输出 `HelloPTLK`。
+
+下一课直接引入第一个 C 函数；System V x86-64 ABI 的必要胶水由脚手架提供，只要求理解调用边界、栈对齐和保存约定。
+
+### 可选启动复盘（不占必做课号）
+
+用户在第 14 课期间提出：前 14 课全部落在"机器怎么工作"这一个轴上，像照着手册实现功能。这个质疑成立且可量化——讲义提到 OSTEP、xv6、6.1810 的次数都是 0，权威引用几乎只有 Intel SDM 与 NASM 文档，14 课的练习动词全是"把这一位设成 1""按这个格式建表""按这个寄存器契约调服务"，没有一道题要求学生**选择**并论证。
+
+其中一部分是 x86 的必然（从复位到 long mode 确实没有设计自由度），但缺口是真的：lesson 模板里没有"OS 视角""对照实现（xv6/Linux/JOS）""设计题""配套阅读"这四个槽位。
+
+可选复盘的定位是：**不加新内容，回收已有材料**。前 14 课已经做了一批真正有取舍的设计决策，但都是课程替学生悄悄做掉的。需要时可逐条论证“反过来选会在哪一步崩”：
+
+- 载荷为什么放 `0x10000`，不是 `0x7e00`，不是 `0x100000`
+- 为什么用 2 MiB large page 做恒等映射，而不是 4 KiB 页
+- 为什么要恒等映射，而不是直接跳高半区
+- 为什么在实模式下用 BIOS 读盘，而不是进保护模式后自己写 ATA 驱动
+- 为什么 `KERNEL_SECTORS=1`，内核长过一个扇区怎么办
+- 为什么 GDT 用 base=0 limit=4G 的平坦段
+- 为什么用 debugcon `0xe9` 而不是串口 `0x3f8`
+
+这份复盘不设红灯、不阻塞 C 主线，也不要求现在完成。进入异常与中断后，课程常驻“OS 视角”“对照实现（xv6/Linux/JOS）”“设计题”“配套阅读”四个槽位；帧分配器阶段开始让学生真正选择并论证数据结构。

@@ -257,3 +257,31 @@ x86 不允许 `mov es, 0x1000` 这种 immediate 直接写段寄存器，所以�
 - [Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110)：`INT n/INTO/INT3`、`JC/JNC/Jcc`
 - [SeaBIOS disk services](https://github.com/coreboot/seabios/blob/master/src/disk.c)
 - [Ralf Brown's Interrupt List：INT 13/AH=02h](https://www.ctyme.com/intr/rb-0607.htm)
+
+## 10. ELF `SECTION`、`GLOBAL` 与链接
+
+`nasm -f bin` 直接输出 raw bytes；`nasm -f elf64` 则输出带 section、symbol 和 relocation 信息的 ELF relocatable object。ELF 源码通常显式声明 section：
+
+```asm
+bits 64
+section .text
+global entry
+
+entry:
+    nop
+```
+
+- `SECTION .text` 把后续生成的内容放入名为 `.text` 的 input section。
+- `GLOBAL entry` 把局部标签导出为 linker 可见的全局 symbol。
+- `BITS 64` 仍只控制指令编码。
+- 这些都是 NASM 指示，不是 CPU 指令。
+
+ELF object 中的 symbol 通常先表示“相对某个 section 的位置”。linker 收集各个 input sections、决定 output section 的地址，再把 symbol 与 relocation 修补为最终值。
+
+flat binary 使用 `ORG` 为当前字节流提供地址假设；ELF 构建通常不在每个源文件里用 `ORG` 决定最终地址，而由统一的 linker script 布局。这样汇编与 C object 才能分别编译后再组合。
+
+参考：
+
+- [NASM ELF64 Output Format](https://www.nasm.us/doc/nasm10.html)
+- [GNU ld：Linker Scripts](https://sourceware.org/binutils/docs/ld/Scripts.html)
+- [System V ABI：ELF](https://refspecs.linuxfoundation.org/elf/gabi4+/contents.html)

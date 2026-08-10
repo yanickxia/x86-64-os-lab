@@ -119,6 +119,14 @@ const lessonMeta = [
     summary: "在 long mode 中用绝对间接跳转把执行权交给 0x10000 的独立载荷，并用 RIP 证明 CPU 正在载荷里执行。",
     takeaway: "JMP r/m64 · RIP 0x1000e",
   },
+  {
+    id: "14",
+    slug: "lesson-14",
+    phase: "ELF 链接",
+    status: "completed",
+    summary: "把独立载荷构建成 ELF64 executable，用 linker script 让 entry、.text 与 symbols 匹配真实加载地址 0x10000。",
+    takeaway: "ELF64 · linker script · VMA 0x10000",
+  },
 ];
 
 function titleFromMarkdown(markdown) {
