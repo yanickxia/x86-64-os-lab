@@ -111,6 +111,14 @@ const lessonMeta = [
     summary: "用 BIOS INT 13h 把镜像第 2 个扇区读到物理地址 0x10000，为独立 64 位内核准备载荷。",
     takeaway: "INT 13h · CHS 0/0/2 · ES:BX",
   },
+  {
+    id: "13",
+    slug: "lesson-13",
+    phase: "控制权转移",
+    status: "completed",
+    summary: "在 long mode 中用绝对间接跳转把执行权交给 0x10000 的独立载荷，并用 RIP 证明 CPU 正在载荷里执行。",
+    takeaway: "JMP r/m64 · RIP 0x1000e",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

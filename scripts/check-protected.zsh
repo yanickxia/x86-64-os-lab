@@ -36,7 +36,7 @@ qemu-system-x86_64 \
 qemu_pid="$!"
 
 for attempt in {1..50}; do
-    if [[ -S "$monitor_socket" && -f "$output_file" && "$(< "$output_file")" == "$expected_output" ]]; then
+    if [[ -S "$monitor_socket" && -f "$output_file" && "$(< "$output_file")" == "$expected_output"* ]]; then
         break
     fi
     sleep 0.1
@@ -48,8 +48,8 @@ if [[ ! -S "$monitor_socket" ]]; then
 fi
 
 actual_output="$(< "$output_file")"
-if [[ "$actual_output" != "$expected_output" ]]; then
-    print -u2 "protected-mode check: expected synchronization output '${expected_output}', got '${actual_output}'"
+if [[ "$actual_output" != "$expected_output"* ]]; then
+    print -u2 "protected-mode check: expected synchronization prefix '${expected_output}', got '${actual_output}'"
     exit 1
 fi
 

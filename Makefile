@@ -27,7 +27,13 @@ KERNEL_SRC := kernel/payload.asm
 KERNEL_BIN := build/kernel.bin
 OS_IMAGE := build/os.img
 FLOPPY_SECTORS := 2880
-DEBUGCON_EXPECTED := HelloPTL
+
+# Full debug-console output, asserted for exact equality.
+DEBUGCON_EXPECTED := HelloPTLK
+# Prefix that only means "the boot-sector switch sequence finished". Checks for
+# earlier lessons use it purely to synchronize before querying machine state,
+# so appending a new character in a later lesson must not turn them red.
+BOOT_SYNC_PREFIX := HelloPTL
 
 QEMU_BOOT_FLAGS := \
 	-machine pc \
@@ -42,7 +48,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load
+.PHONY: check-tools qemu-reset inspect-reset boot image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry
 
 check-tools:
 	@set -e; \
@@ -124,13 +130,18 @@ disassemble-boot: boot
 	@dd if=$(BOOT_BIN) bs=1 skip=0xb0 count=0x2e status=none | ndisasm -w -b 32 -o 0x7cb0 -
 	@printf '%s\n' '== 32-bit long-mode switch (0x7cf0-0x7d20) =='
 	@dd if=$(BOOT_BIN) bs=1 skip=0xf0 count=0x31 status=none | ndisasm -w -b 32 -o 0x7cf0 -
-	@printf '%s\n' '== 64-bit long-mode entry (from 0x7d30) =='
-	@dd if=$(BOOT_BIN) bs=1 skip=0x130 count=0x06 status=none | ndisasm -w -b 64 -o 0x7d30 -
+	@printf '%s\n' '== 64-bit long-mode entry and payload handoff (0x7d30-0x7d4f) =='
+	@dd if=$(BOOT_BIN) bs=1 skip=0x130 count=0x20 status=none | ndisasm -w -b 64 -o 0x7d30 -
 	@printf '%s\n' '== 16-bit BIOS disk loader (from 0x7d50) =='
 	@dd if=$(BOOT_BIN) bs=1 skip=0x150 count=0x30 status=none | ndisasm -w -b 16 -o 0x7d50 -
 
 disassemble-kernel: $(KERNEL_BIN)
-	@ndisasm -w -b 64 -o 0x10000 $(KERNEL_BIN) | sed -n '1,8p'
+	@printf '%s\n' '== payload entry jump at 0x10000 =='
+	@dd if=$(KERNEL_BIN) bs=1 count=2 status=none | ndisasm -w -b 64 -o 0x10000 -
+	@printf '%s\n' '== KERNEL64 magic data at 0x10002-0x10009 (not instructions) =='
+	@xxd -g 1 -s 2 -l 8 $(KERNEL_BIN)
+	@printf '%s\n' '== payload code at 0x1000a-0x1000f =='
+	@dd if=$(KERNEL_BIN) bs=1 skip=10 count=6 status=none | ndisasm -w -b 64 -o 0x1000a -
 
 inspect-image: image
 	@printf '%s\n' '== boot signature and start of sector 2 =='
@@ -158,19 +169,22 @@ check-call: check-image
 	@zsh scripts/check-call.zsh $(OS_IMAGE)
 
 check-a20: check-image
-	@zsh scripts/check-a20.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-a20.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
 
 check-gdt: check-image
-	@zsh scripts/check-gdt.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-gdt.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
 
 check-protected: check-image
-	@zsh scripts/check-protected.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-protected.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
 
 check-page-tables: check-image
-	@zsh scripts/check-page-tables.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-page-tables.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
 
 check-long-mode: check-image
-	@zsh scripts/check-long-mode.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-long-mode.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
 
 check-kernel-load: check-image
-	@zsh scripts/check-kernel-load.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-kernel-load.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
+
+check-kernel-entry: check-image
+	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)

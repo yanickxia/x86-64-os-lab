@@ -163,6 +163,10 @@ bits 64
 long_mode_entry:
     mov al, 'L'
     out 0xe9, al
+
+    mov rax, KERNEL_LOAD_ADDR
+    jmp rax
+
 .long_mode_hang:
     jmp .long_mode_hang
 

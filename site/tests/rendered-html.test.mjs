@@ -35,12 +35,14 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>13<\/strong><span>节已完成/);
+  assert.match(html, /<strong>14<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?13(?:<!-- -->)? 节/);
-  assert.match(html, /独立载荷已读入内存/);
+  assert.match(html, /共 (?:<!-- -->)?14(?:<!-- -->)? 节/);
+  assert.match(html, /执行权已交给独立载荷/);
+  assert.match(html, /RIP=0x1000e/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
+  assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.doesNotMatch(html, /下一步：/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
@@ -55,6 +57,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-10", /PML4.*effective address.*flat segmentation.*CR3.*TLB/is],
     ["/lessons/lesson-11", /CR4\.PAE.*CR3.*0xc0000080.*EDX:EAX.*LME.*LMA.*CR0\.PG.*CS64/is],
     ["/lessons/lesson-12", /INT 13h.*ES:BX.*0x10000.*sector 2/is],
+    ["/lessons/lesson-13", /JMP rel32.*绝对间接跳转.*CS64/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

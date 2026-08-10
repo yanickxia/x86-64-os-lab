@@ -38,6 +38,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 每课在练习前列出先修知识，并讲清本课新增的最小语法与机器模型。
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
 - 写代码前先预测机器状态和输出。
+- “实验前预测”必须出现在正文公布精确实验结果之前，并在页面内给齐推演所需的当前源码片段、固定地址、已知指令长度和前置状态；不能要求学生从未展示的“当前代码”猜答案。尚未讲授、无法精确推出的内容要明确标成“允许猜测”，预测错误必须保留。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
 - 每个里程碑结束时留一个干净提交。
 
@@ -66,6 +67,7 @@ make check-protected     # CR0.PE=1，32/64 位最终状态均保持段基础不
 make check-page-tables   # PML4[0] → PDPT[0] → 2 MiB identity map
 make check-long-mode     # CR4.PAE、CR3、EFER.LME/LMA、CR0.PG 与 CS64
 make check-kernel-load   # 镜像 sector 2 已被 BIOS 读到物理地址 0x10000
+make check-kernel-entry  # 执行权已交给载荷：RIP=0x1000e、CS 仍为 0x18（CS64）
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -128,6 +130,13 @@ npm run lint
 
 写新脚本照这个形状抄。断言失败时要打印期望值和实际值两行——学生要把它抄进 `notes/` 的“红灯”一节。
 
+**同步条件与断言条件必须分开**，Makefile 里是两个变量：
+
+- `DEBUGCON_EXPECTED`（当前 `HelloPTLK`）——完整输出，只有 `check-debugcon` 和 `check-kernel-entry` 对它做精确相等断言。
+- `BOOT_SYNC_PREFIX`（当前 `HelloPTL`）——a20/gdt/protected/page-tables/long-mode/kernel-load 这六个脚本只用它**前缀匹配**，等到“切换序列已完成”就去查寄存器。
+
+原因：每新增一课都会往 debugcon 输出追加一个字符。如果这六个脚本继续用精确相等，红灯阶段它们会因为 `HelloPTL != HelloPTLK` 集体超时失败，而它们要断言的机制其实全都好着——红灯就不干净了。后续课程追加字符时，只需 bump `DEBUGCON_EXPECTED`，一般不用动 `BOOT_SYNC_PREFIX`。
+
 ### docs/ 与 notes/ 成对，结构固定
 
 `docs/lesson-NN.md`：`# 第 N 课：…` → `## 先修知识` → `## 本课只引入一个机制` → 编号小节（含“为什么有这个东西”的历史演化）→ `## 练习` → `## 观察题` → `## 完成标准`。
@@ -155,6 +164,10 @@ npm run lint
 
 ## 当前进度
 
-第 0–12 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后，三个 entry 的 Accessed 位会被置 1。
+第 0–13 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后，三个 entry 的 Accessed 位会被置 1。
 
-第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。下一课把执行权交给独立载荷；之后建立 linker script、System V x86-64 ABI 与 C 运行环境。
+第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
+
+第 13 课已把 `KERNEL_LOAD_ADDR` 装入 `RAX`，再用 `JMP r/m64` 把执行权交给独立载荷。绿灯证据是 debugcon 输出 `HelloPTLK`、`RIP=0x1000e`、`CS=0x18`（`CS64`）、`RAX=0x1004b`。
+
+之后建立 linker script、System V x86-64 ABI 与 C 运行环境。

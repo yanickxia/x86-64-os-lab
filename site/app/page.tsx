@@ -69,12 +69,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>独立载荷已读入内存</h2>
-            <p>启动扇区已经通过 BIOS 读取镜像的第 2 个扇区，并用物理内存证据证明 512 字节载荷完整出现在 0x10000。</p>
+            <h2>执行权已交给独立载荷</h2>
+            <p>CPU 已从启动扇区跳到 0x10000 的独立载荷，并用 HelloPTLK、RIP=0x1000e 与 CS64 留下可重复的控制流证据。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>BIOS → LBA 1 → 0x10000</code>
+            <code>CS64 → 0x10000 → RIP 0x1000e</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>
