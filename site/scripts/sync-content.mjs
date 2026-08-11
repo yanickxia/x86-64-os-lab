@@ -175,6 +175,14 @@ const lessonMeta = [
     summary: "继续使用自己的 BIOS loader，把 4-sector 内核完整搬到 RAM，并用尾部标记证明加载长度合同。",
     takeaway: "4 sectors → 0x10000..0x107ff",
   },
+  {
+    id: "21",
+    slug: "lesson-21",
+    phase: "Bootloader 完成",
+    status: "completed",
+    summary: "让 stage 1 加载并调用独立 stage2.bin，用 RAM 握手区分“字节已加载”和“CPU 确实执行”。",
+    takeaway: "stage 1 CALL → stage 2 RET",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

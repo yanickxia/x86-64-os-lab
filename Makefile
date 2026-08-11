@@ -26,6 +26,14 @@ QEMU_RESET_FLAGS := \
 
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
+STAGE2_SRC := boot/stage2.asm
+STAGE2_BIN := build/stage2.bin
+STAGE2_SECTORS := 2
+STAGE2_IMAGE_BYTES := 1024
+STAGE2_LBA := 5
+STAGE2_LOAD_SEGMENT := 0x0800
+STAGE2_LOAD_ADDR := 0x8000
+STAGE2_HANDSHAKE_ADDR := 0x7000
 KERNEL_SRC := kernel/payload.asm
 KERNEL_C_SRCS := kernel/main.c kernel/interrupts.c
 KERNEL_HEADERS := kernel/interrupts.h
@@ -86,7 +94,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-kernel-entry check-kernel-elf check-c-kernel check-exception
+.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-kernel-entry check-kernel-elf check-c-kernel check-exception
 
 check-tools:
 	@set -e; \
@@ -111,7 +119,16 @@ inspect-reset:
 
 $(BOOT_BIN): $(BOOT_SRC)
 	@mkdir -p build
-	@nasm -D KERNEL_SECTORS=$(KERNEL_SECTORS) -f bin -o $@ $<
+	@nasm \
+		-D KERNEL_SECTORS=$(KERNEL_SECTORS) \
+		-D STAGE2_SECTORS=$(STAGE2_SECTORS) \
+		-D STAGE2_LOAD_SEGMENT=$(STAGE2_LOAD_SEGMENT) \
+		-D STAGE2_LOAD_ADDR=$(STAGE2_LOAD_ADDR) \
+		-f bin -o $@ $<
+
+$(STAGE2_BIN): $(STAGE2_SRC)
+	@mkdir -p build
+	@nasm -D STAGE2_IMAGE_BYTES=$(STAGE2_IMAGE_BYTES) -f bin -o $@ $<
 
 $(KERNEL_OBJ): $(KERNEL_SRC)
 	@mkdir -p build
@@ -127,11 +144,14 @@ $(KERNEL_ELF): $(KERNEL_OBJS) $(KERNEL_LINKER)
 $(KERNEL_BIN): $(KERNEL_ELF)
 	@x86_64-elf-objcopy -O binary $< $@
 
-$(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
+$(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN) $(STAGE2_BIN)
 	@dd if=/dev/zero of=$@ bs=512 count=$(FLOPPY_SECTORS) status=none
 	@dd if=$(BOOT_BIN) of=$@ conv=notrunc status=none
 	@dd if=$(KERNEL_BIN) of=$@ bs=512 seek=1 conv=notrunc status=none
+	@dd if=$(STAGE2_BIN) of=$@ bs=512 seek=$(STAGE2_LBA) conv=notrunc status=none
 boot: $(BOOT_BIN)
+
+stage2: $(STAGE2_BIN)
 
 kernel-elf: $(KERNEL_ELF)
 
@@ -141,7 +161,7 @@ check-boot: boot
 	@zsh scripts/check-boot-sector.zsh $(BOOT_BIN)
 
 check-image: image check-boot
-	@zsh scripts/check-disk-image.zsh $(OS_IMAGE) $(BOOT_BIN) $(KERNEL_BIN)
+	@zsh scripts/check-disk-image.zsh $(OS_IMAGE) $(BOOT_BIN) $(KERNEL_BIN) $(STAGE2_BIN) $(STAGE2_LBA)
 
 qemu-boot: check-image
 	@printf "QEMU is paused at reset; press Ctrl-C after inspection to stop it.\n"
@@ -183,6 +203,12 @@ disassemble-boot: boot
 	@dd if=$(BOOT_BIN) bs=1 skip=0x130 count=0x20 status=none | ndisasm -w -b 64 -o 0x7d30 -
 	@printf '%s\n' '== 16-bit BIOS disk loader (from 0x7d50) =='
 	@dd if=$(BOOT_BIN) bs=1 skip=0x150 count=0x30 status=none | ndisasm -w -b 16 -o 0x7d50 -
+
+disassemble-stage2: stage2
+	@printf '%s\n' '== stage 2 entry jump and six-byte magic =='
+	@xxd -g 1 -l 8 $(STAGE2_BIN)
+	@printf '%s\n' '== executable stage 2 entry at 0x8008 =='
+	@dd if=$(STAGE2_BIN) bs=1 skip=8 count=20 status=none | ndisasm -b 16 -o 0x8008 -
 
 disassemble-kernel: $(KERNEL_BIN)
 	@printf '%s\n' '== linked kernel disassembly (assembly entry + C) =='
@@ -227,6 +253,15 @@ inspect-kernel-span: image
 	@printf '%s\n' '== same tail bytes inside os.img =='
 	@xxd -g 1 -s 0x9f0 -l 16 $(OS_IMAGE)
 
+inspect-stage2: image
+	@printf '%s\n' '== stage 2 source image: entry and tail =='
+	@wc -c $(STAGE2_BIN)
+	@xxd -g 1 -l 24 $(STAGE2_BIN)
+	@xxd -g 1 -s 0x3f0 -l 16 $(STAGE2_BIN)
+	@printf '%s\n' '== same stage 2 bytes at os.img LBA 5 =='
+	@xxd -g 1 -s 0xa00 -l 24 $(OS_IMAGE)
+	@xxd -g 1 -s 0xdf0 -l 16 $(OS_IMAGE)
+
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
@@ -268,6 +303,9 @@ check-kernel-load: check-image $(KERNEL_BIN)
 
 check-multisector-load: check-image $(KERNEL_BIN)
 	@zsh scripts/check-multisector-load.zsh $(OS_IMAGE) $(KERNEL_BIN) $(KERNEL_SECTORS) $(DEBUGCON_EXPECTED)
+
+check-stage2-handoff: check-image $(STAGE2_BIN)
+	@zsh scripts/check-stage2-handoff.zsh $(OS_IMAGE) $(STAGE2_BIN) $(STAGE2_LOAD_ADDR) $(STAGE2_HANDSHAKE_ADDR) $(DEBUGCON_EXPECTED)
 
 check-kernel-entry: check-image
 	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(KERNEL_ENTRY_EXPECTED)

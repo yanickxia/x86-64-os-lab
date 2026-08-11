@@ -17,6 +17,15 @@ KERNEL_LOAD_ADDR equ KERNEL_LOAD_SEGMENT << 4
 %ifndef KERNEL_SECTORS
 %define KERNEL_SECTORS 4
 %endif
+%ifndef STAGE2_SECTORS
+%define STAGE2_SECTORS 2
+%endif
+%ifndef STAGE2_LOAD_SEGMENT
+%define STAGE2_LOAD_SEGMENT 0x0800
+%endif
+%ifndef STAGE2_LOAD_ADDR
+%define STAGE2_LOAD_ADDR 0x8000
+%endif
 
 
 start:
@@ -195,6 +204,10 @@ load_kernel:
     mov dh, 0x00
     int 0x13
     jc .disk_read_failed
+    call load_stage2
+
+    ; RED / TODO (lesson 21): call the loaded stage 2 entry, then let it return.
+    call STAGE2_LOAD_ADDR
     jmp .done
 
 .done:
@@ -209,6 +222,32 @@ load_kernel:
     mov al, 'E'
     out 0xe9, al
     jmp .disk_read_failed
+
+load_stage2:
+    push ax
+    push bx
+    push cx
+    push dx
+    push es
+
+    mov ax, STAGE2_LOAD_SEGMENT
+    mov es, ax
+    xor bx, bx
+
+    mov ah, 0x02
+    mov al, STAGE2_SECTORS
+    mov ch, 0x00
+    mov cl, 0x06
+    mov dh, 0x00
+    int 0x13
+    jc load_kernel.disk_read_failed
+
+    pop es
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
 
 times 510 - ($ - $$) db 0
 dw 0xaa55

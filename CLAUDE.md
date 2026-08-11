@@ -82,6 +82,7 @@ make check-kernel-elf    # ELF entry、.text VMA 与 symbols 均匹配加载地�
 make check-c-kernel      # 汇编入口调用 kernel_main，C 通过 debug_putc 追加字符 C
 make check-exception     # #UD 经 IDT vector 6 进入 C handler，IRETQ 后回到 0x1000e
 make check-multisector-load # 自制 loader 把 4-sector kernel 的尾部标记读到 0x107f8
+make check-stage2-handoff # stage 1 加载并调用 0x8000，stage 2 在 0x7000 写握手后返回
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -95,6 +96,8 @@ make inspect-kernel-elf  # 查看 ELF header、symbols 与 section 地址/文件
 make inspect-kernel-c    # 只看汇编调用点、kernel_main 源码/指令与 debug_putc
 make inspect-exception   # 查看 IDT/#UD symbols、汇编入口和 C handler 反汇编
 make inspect-kernel-span # 查看 2048-byte kernel.bin 及镜像中的尾部 LOAD4SEC
+make inspect-stage2      # 查看 stage2.bin 与 os.img LBA 5 中的入口/尾部 bytes
+make disassemble-stage2  # 从真实入口 0x8008 按 16 位规则反汇编 stage 2
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
@@ -140,6 +143,8 @@ npm run lint
 
 `start` 在 `0x7c0d` 用 3 字节 near call 调用固定在 `0x7d50` 的 `load_kernel`，所以 `main` 仍保持在 `0x7c10`。`main` 区（`0x7c10..0x7c30`）依然只剩 2 字节；第 9 课用 short jump 转到 `0x7c70` 的切换序列，因此保留了旧课的固定地址证据。后续扩展启动代码时，不能让新区域与 message、GDT 或启动扇区签名重叠。
 
+第 21 课在 `load_kernel` 后半加入 `load_stage2`：它从 CHS sector 6..7（LBA 5..6）把 1024-byte `build/stage2.bin` 读到 physical `0x8000..0x83ff`。lesson-21 的 3-byte 槽位固定在 `0x7d6e..0x7d70`；红灯是三个 NOP，绿灯为 `CALL STAGE2_LOAD_ADDR`。stage 2 在 `0x7000` 写入 `STAGE2OK` 后 `RET`，旧 A20/GDT/long-mode/kernel 路径仍由 stage 1 执行。boot sector 当前有效代码结束约在 offset `0x19f`，仍由动态 `times` 填充到签名。
+
 `org 0x7c00` 只告诉 NASM 假设代码位于该地址以便算标签，不负责加载；填充一律用 `times 510 - ($ - $$) db 0` 这种动态表达式，不要写死字节数。
 
 ### kernel/：独立载荷的 ELF 构建管线
@@ -160,6 +165,10 @@ npm run lint
 - 第 25 课：把自制 handoff 与 Limine protocol 逐字段对照后再切换。
 
 “毕业”不等于实现 UEFI、Secure Boot、文件系统、网络启动和全部硬件兼容；它表示与本课程内核直接相关的加载、资源发现、执行环境和 handoff 不再是黑盒。Limine 之后只是成熟实现的替换，不用于掩盖未讲过的启动合同。
+
+### boot/stage2.asm：可执行的迁移边界
+
+`stage2.asm` 是 `ORG 0x8000` 的独立 16-bit flat binary，当前固定 2 sectors / 1024 bytes。offset 0 是跳到 `0x8008` 的 short jump，随后六字节 magic `STAGE2`；offset `0x3f8` 是尾部 `S2TAIL!!`。入口只向 physical `0x7000` 写八字节 `STAGE2OK` 并返回。起点/尾部证明完整加载，独立 handshake 证明真实执行；不要用 debug output 代替这两类证据。第 22 课起 E820 等职责会迁入这里。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
@@ -205,7 +214,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–20 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–21 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -244,5 +253,7 @@ npm run lint
 第 19 课已结课：`kernel_main` 安装 7-entry 教学 IDT 并执行两字节 `UD2`；vector 6 经汇编入口进入 `invalid_opcode_handler`。C handler 把保存的 `RIP` 从 `0x10028` 推进到 `0x1002a`，汇编恢复 GPR 后用 `IRETQ` 返回；完整输出为 `HelloPTLKCUR`，最终仍停在 `RIP=0x1000e`。当前 IDT 只覆盖 vector `0..6`，且只有 vector 6 有效，尚不能处理 `#PF` 等其他异常。
 
 第 20 课已结课：构建产物扩为 4 sectors / 2048 bytes，尾部 `LOAD4SEC` 位于 kernel offset `0x7f8`、镜像 offset `0x9f8`、guest physical `0x107f8`。BIOS `INT 13h AH=02h` 的 `AL` 使用 `KERNEL_SECTORS`，一次连续读取覆盖 CHS sector 2..5；完整输出仍为 `HelloPTLKCUR`，且 `check-multisector-load` 已证明最后一个 sector 确实进入 RAM。
+
+第 21 课已结课：stage 1 从 LBA 5..6 把完整 stage2 image 加载到 `0x8000..0x83ff`，在 `0x7d6e` 用 3-byte `CALL STAGE2_LOAD_ADDR` 移交控制。stage 2 写入 qword `0x4b4f324547415453`（bytes `STAGE2OK`）后 `RET` 到 `0x7d71`，旧输出仍为 `HelloPTLKCUR`。起点/尾部证明 loaded，独立 handshake 证明 executed；第 0–20 课全部回归通过。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。
