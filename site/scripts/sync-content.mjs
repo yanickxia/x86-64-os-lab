@@ -191,6 +191,14 @@ const lessonMeta = [
     summary: "由 stage 2 查询 BIOS E820，发布带版本和边界的 boot_info，并通过 RDI 交给 64 位 C 内核。",
     takeaway: "E820 → boot_info → RDI → C",
   },
+  {
+    id: "23",
+    slug: "lesson-23",
+    phase: "Bootloader 完成",
+    status: "completed",
+    summary: "承接第 22 课，把 kernel 装载职责从 stage 1 迁入 stage 2：按 ELF PT_LOAD 复制 file bytes、清零 .bss，再进入 C。",
+    takeaway: "PT_LOAD → .bss → stack → C",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

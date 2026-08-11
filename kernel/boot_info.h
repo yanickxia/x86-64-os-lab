@@ -7,6 +7,7 @@
 #define BOOT_INFO_ADDR UINT64_C(0x5000)
 #define BOOT_INFO_ENTRIES_ADDR UINT64_C(0x5020)
 #define BOOT_INFO_ACK_ADDR UINT64_C(0x7010)
+#define ELF_ENV_ACK_ADDR UINT64_C(0x7018)
 #define BOOT_INFO_MAGIC UINT32_C(0x464e4942)
 #define BOOT_INFO_VERSION UINT16_C(1)
 #define BOOT_INFO_MAX_ENTRIES UINT32_C(32)
@@ -26,12 +27,13 @@ struct boot_info {
     uint32_t entry_count;
     uint32_t entry_capacity;
     uint64_t entries_phys;
-    uint64_t reserved;
+    uint64_t kernel_entry_phys;
 };
 
 _Static_assert(sizeof(struct e820_entry) == 24, "E820 entry layout must match stage 2");
 _Static_assert(sizeof(struct boot_info) == 32, "boot_info layout must match stage 2");
 _Static_assert(offsetof(struct boot_info, entry_count) == 8, "entry_count offset mismatch");
 _Static_assert(offsetof(struct boot_info, entries_phys) == 16, "entries_phys offset mismatch");
+_Static_assert(offsetof(struct boot_info, kernel_entry_phys) == 24, "kernel entry offset mismatch");
 
 #endif

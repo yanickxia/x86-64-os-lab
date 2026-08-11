@@ -42,9 +42,12 @@ KERNEL_OBJ := build/kernel.o
 KERNEL_C_OBJS := build/main.o build/interrupts.o
 KERNEL_OBJS := $(KERNEL_OBJ) $(KERNEL_C_OBJS)
 KERNEL_ELF := build/kernel.elf
+KERNEL_LOAD_ELF := build/kernel.load.elf
 KERNEL_BIN := build/kernel.bin
 KERNEL_SECTORS := 4
 KERNEL_IMAGE_BYTES := 2048
+KERNEL_LOAD_ELF_LBA := 18
+KERNEL_LOAD_ELF_IMAGE_BYTES := 8192
 OS_IMAGE := build/os.img
 FLOPPY_SECTORS := 2880
 
@@ -94,7 +97,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-kernel-entry check-kernel-elf check-c-kernel check-exception
+.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception
 
 check-tools:
 	@set -e; \
@@ -139,16 +142,21 @@ $(KERNEL_C_OBJS): build/%.o: kernel/%.c $(KERNEL_HEADERS)
 	@x86_64-elf-gcc $(KERNEL_CFLAGS) -c -o $@ $<
 
 $(KERNEL_ELF): $(KERNEL_OBJS) $(KERNEL_LINKER)
-	@x86_64-elf-ld -nostdlib --defsym KERNEL_IMAGE_BYTES=$(KERNEL_IMAGE_BYTES) -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJS)
+	@x86_64-elf-ld -nostdlib --no-warn-rwx-segments --defsym KERNEL_IMAGE_BYTES=$(KERNEL_IMAGE_BYTES) -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJS)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	@x86_64-elf-objcopy -O binary $< $@
 
-$(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN) $(STAGE2_BIN)
+$(KERNEL_LOAD_ELF): $(KERNEL_ELF)
+	@x86_64-elf-objcopy --strip-all $< $@
+	@test "$$(wc -c < $@ | tr -d ' ')" -le $(KERNEL_LOAD_ELF_IMAGE_BYTES)
+
+$(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN) $(STAGE2_BIN) $(KERNEL_LOAD_ELF)
 	@dd if=/dev/zero of=$@ bs=512 count=$(FLOPPY_SECTORS) status=none
 	@dd if=$(BOOT_BIN) of=$@ conv=notrunc status=none
 	@dd if=$(KERNEL_BIN) of=$@ bs=512 seek=1 conv=notrunc status=none
 	@dd if=$(STAGE2_BIN) of=$@ bs=512 seek=$(STAGE2_LBA) conv=notrunc status=none
+	@dd if=$(KERNEL_LOAD_ELF) of=$@ bs=512 seek=$(KERNEL_LOAD_ELF_LBA) conv=notrunc status=none
 boot: $(BOOT_BIN)
 
 stage2: $(STAGE2_BIN)
@@ -161,7 +169,7 @@ check-boot: boot
 	@zsh scripts/check-boot-sector.zsh $(BOOT_BIN)
 
 check-image: image check-boot
-	@zsh scripts/check-disk-image.zsh $(OS_IMAGE) $(BOOT_BIN) $(KERNEL_BIN) $(STAGE2_BIN) $(STAGE2_LBA)
+	@zsh scripts/check-disk-image.zsh $(OS_IMAGE) $(BOOT_BIN) $(KERNEL_BIN) $(STAGE2_BIN) $(STAGE2_LBA) $(KERNEL_LOAD_ELF) $(KERNEL_LOAD_ELF_LBA)
 
 qemu-boot: check-image
 	@printf "QEMU is paused at reset; press Ctrl-C after inspection to stop it.\n"
@@ -268,6 +276,14 @@ inspect-boot-info: $(STAGE2_BIN) $(KERNEL_ELF)
 	@printf '%s\n' '== C boot_info consumer =='
 	@x86_64-elf-objdump -drS --disassemble=kernel_main $(KERNEL_ELF) | rg -C 3 '5000|7010|214b4f43|boot_info|entry_count|type'
 
+inspect-elf-loader: $(STAGE2_BIN) $(KERNEL_ELF) $(KERNEL_LOAD_ELF)
+	@printf '%s\n' '== ELF program headers consumed by stage 2 =='
+	@x86_64-elf-readelf -lW $(KERNEL_LOAD_ELF)
+	@printf '%s\n' '== ELF loader copy/poison/zero path =='
+	@dd if=$(STAGE2_BIN) bs=1 skip=8 status=none | ndisasm -b 16 -o 0x8008 - | rg -n 'int 0x13|rep movsb|rep stosb|a5|7018|ret'
+	@printf '%s\n' '== .bss and dedicated stack symbols =='
+	@x86_64-elf-nm -n $(KERNEL_ELF) | rg '__bss_|lesson23_bss_probe|kernel_stack_(bottom|top)'
+
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
@@ -315,6 +331,9 @@ check-stage2-handoff: check-image $(STAGE2_BIN)
 
 check-e820-boot-info: check-image $(STAGE2_BIN) $(KERNEL_ELF)
 	@zsh scripts/check-e820-boot-info.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+
+check-elf-loader: check-image $(STAGE2_BIN) $(KERNEL_ELF) $(KERNEL_LOAD_ELF)
+	@zsh scripts/check-elf-loader.zsh $(OS_IMAGE) $(KERNEL_ELF) $(KERNEL_BIN) $(DEBUGCON_EXPECTED)
 
 check-kernel-entry: check-image
 	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(KERNEL_ENTRY_EXPECTED)

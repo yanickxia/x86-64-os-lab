@@ -2,6 +2,14 @@
 #include "interrupts.h"
 
 #define BOOT_INFO_ACK_VALUE UINT64_C(0x214b4f4330323845) /* bytes "E820COK!" */
+#define ELF_ENV_ACK_VALUE UINT64_C(0x214b4f3436464c45) /* bytes "ELF64OK!" */
+
+extern unsigned char kernel_stack_bottom[];
+extern unsigned char kernel_stack_top[];
+
+/* C requires this uninitialized global to begin as zero. It occupies no bytes
+ * in the ELF file; the PT_LOAD loader must establish that runtime state. */
+volatile uint64_t lesson23_bss_probe;
 
 static void acknowledge_boot_info(const struct boot_info *info) {
     if (info == 0
@@ -24,9 +32,21 @@ static void acknowledge_boot_info(const struct boot_info *info) {
     }
 }
 
+static void acknowledge_elf_environment(void) {
+    unsigned char stack_marker = 0;
+    const uintptr_t stack_address = (uintptr_t)&stack_marker;
+
+    if (lesson23_bss_probe == 0
+        && stack_address >= (uintptr_t)kernel_stack_bottom
+        && stack_address < (uintptr_t)kernel_stack_top) {
+        *(volatile uint64_t *)(uintptr_t)ELF_ENV_ACK_ADDR = ELF_ENV_ACK_VALUE;
+    }
+}
+
 void kernel_main(const struct boot_info *boot_info) {
     debug_putc('C');
     acknowledge_boot_info(boot_info);
+    acknowledge_elf_environment();
     idt_install();
     trigger_invalid_opcode();
     debug_putc('R');

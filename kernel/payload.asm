@@ -13,6 +13,7 @@ global isr_invalid_opcode
 global exception_red_hang
 extern kernel_main
 extern invalid_opcode_handler
+extern kernel_stack_top
 
 kernel_start:
     jmp short kernel_entry
@@ -31,6 +32,10 @@ kernel_hang:
     jmp kernel_hang
 
 kernel_call_stub:
+    ; The ELF loader reserves and clears this NOBITS stack through PT_LOAD.
+    lea rsp, [rel kernel_stack_top]
+    and rsp, -16
+    xor ebp, ebp
     mov al, 'K'
     out 0xe9, al
     call kernel_main
@@ -110,3 +115,12 @@ lesson_idt_end:
 lesson_idtr:
     dw lesson_idt_end - lesson_idt - 1
     dq lesson_idt
+
+section .bss.stack nobits
+align 16
+global kernel_stack_bottom
+global kernel_stack_top
+
+kernel_stack_bottom:
+    resb 16 * 1024
+kernel_stack_top:

@@ -85,6 +85,7 @@ make check-exception     # #UD 经 IDT vector 6 进入 C handler，IRETQ 后回�
 make check-multisector-load # 自制 loader 把 4-sector kernel 的尾部标记读到 0x107f8
 make check-stage2-handoff # stage 1 加载并调用 0x8000，stage 2 在 0x7000 写握手后返回
 make check-e820-boot-info # stage 2 发布 E820 map，C 从 RDI=0x5000 消费并写 0x7010 ack
+make check-elf-loader    # 破坏临时镜像的 raw LBA 1，验证 PT_LOAD/.bss/stack/e_entry 与 0x7018 ack
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -101,6 +102,7 @@ make inspect-kernel-span # 查看 2048-byte kernel.bin 及镜像中的尾部 LOA
 make inspect-stage2      # 查看 stage2.bin 与 os.img LBA 5 中的入口/尾部 bytes
 make disassemble-stage2  # 从真实入口 0x8008 按 16 位规则反汇编 stage 2
 make inspect-boot-info    # 查看 stage 2 E820 loop/count publication 与 C consumer
+make inspect-elf-loader   # 查看 loader-facing ELF program headers、copy/zero 路径和 stack/.bss symbols
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
@@ -154,9 +156,9 @@ npm run lint
 
 ### kernel/：独立载荷的 ELF 构建管线
 
-第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`。第 18 课加入 `kernel/main.c`，第 19 课加入 `kernel/interrupts.c`，都由 `x86_64-elf-gcc -ffreestanding` 生成 object；`x86_64-elf-ld -T kernel/linker.ld` 把它们链接为 `build/kernel.elf`，再由 `objcopy -O binary` 抽出 raw `build/kernel.bin`。第 20 课把 raw payload 扩大到 4 sectors / 2048 bytes，并在 offset `0x7f8` 放置 `LOAD4SEC` 尾部标记。镜像和 BIOS loader 仍只消费 raw bytes；ELF 用于 symbols、sections 和 relocations。
+第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`。第 18 课加入 `kernel/main.c`，第 19 课加入 `kernel/interrupts.c`，都由 `x86_64-elf-gcc -ffreestanding` 生成 object；`x86_64-elf-ld -T kernel/linker.ld` 把它们链接为 `build/kernel.elf`。第 23 课保留 `objcopy -O binary` 生成的 2048-byte `kernel.bin` 供历史回归，同时新增去掉 symbols/debug 的标准 `kernel.load.elf` 给 stage 2；当前启动路径只消费后者的 ELF header/program headers 和 file bytes。
 
-当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。汇编在 `kernel_call_stub` 输出 `K` 并 `CALL kernel_main`；`debug_putc(char)` 按 SysV ABI 从 `EDI` 取第一个参数。第 19 课的教学 IDT 只有 7 项（limit `0x6f`），只安装 vector 6 `#UD`；汇编入口保存 GPR、对齐栈并用 `IRETQ` 返回。linker 暂时拒绝非空 `.bss`，直到 bootloader 毕业阶段建立清零合同。linker script 的 location counter 是地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
+当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。第一个 `PT_LOAD` 是 `p_paddr=0x10000, filesz=memsz=0x800`；第二个是 `p_paddr=0x11000, filesz=0, memsz=0x4008`，包含 16 KiB stack 和 8-byte `lesson23_bss_probe`。汇编入口把 `RSP` 设到 `kernel_stack_top=0x15000` 后调用 C；第 19 课的 7-entry 教学 IDT/#UD 路径保持不变。linker script 的 location counter 是地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
 
 ### 第 20–25 课：自制 bootloader 的毕业边界
 
@@ -173,7 +175,7 @@ npm run lint
 
 ### boot/stage2.asm：可执行的迁移边界
 
-`stage2.asm` 是 `ORG 0x8000` 的独立 16-bit flat binary，当前固定 2 sectors / 1024 bytes。offset 0 是跳到 `0x8008` 的 short jump，随后六字节 magic `STAGE2`；offset `0x3f8` 是尾部 `S2TAIL!!`。入口先向 physical `0x7000` 写八字节 `STAGE2OK`，再用 `INT 15h E820h` 把最多 32 个 24-byte entries 收集到 `0x5020..0x531f`。32-byte `boot_info` header 位于 `0x5000`，entry_count offset 为 8；C acknowledgement `E820COK!` 位于 `0x7010`。起点/尾部证明完整加载，两个独立 handshake 分别证明 stage 2 和 C consumer 真实执行。
+`stage2.asm` 是 `ORG 0x8000` 的独立 16-bit flat binary，当前固定 2 sectors / 1024 bytes。offset 0 是跳到 `0x8008` 的 short jump，随后六字节 magic `STAGE2`；offset `0x3f8` 是尾部 `S2TAIL!!`。入口先写 `STAGE2OK`，再收集 E820，随后从 LBA 18 读取最多 8192-byte loader-facing ELF 到 `0x20000`。它只接受低端、16-byte-aligned、单一 64 KiB window 可表达的 `PT_LOAD`，复制 `p_filesz`、清零 `p_memsz-p_filesz`，并把 ELF `e_entry` 发布到 `boot_info+24`。C 的 `ELF64OK!` acknowledgement 位于 `0x7018`。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
@@ -219,7 +221,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–22 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–23 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -262,5 +264,7 @@ npm run lint
 第 21 课已结课：stage 1 从 LBA 5..6 把完整 stage2 image 加载到 `0x8000..0x83ff`，在 `0x7d6e` 用 3-byte `CALL STAGE2_LOAD_ADDR` 移交控制。stage 2 写入 qword `0x4b4f324547415453`（bytes `STAGE2OK`）后 `RET` 到 `0x7d71`，旧输出仍为 `HelloPTLKCUR`。起点/尾部证明 loaded，独立 handshake 证明 executed；第 0–20 课全部回归通过。
 
 第 22 课已结课：stage 2 的 E820 loop 把非空 firmware entries 写到 `0x5020`，并用一条 16-bit store 把内部 `BP` 发布到 header 的 `entry_count`（offset `0x5008`）。本机得到 7/32 entries；64 位入口以 `RDI=0x5000` 交给 C，C 校验 header 和可用 range 后在 `0x7010` 写 qword `0x214b4f4330323845`（bytes `E820COK!`）。该 count 由固件结果动态决定，不被 checker 写死；全部旧回归通过。
+
+第 23 课已结课：stage 2 从 LBA 18 把精简 ELF 读到 `0x20000`，遍历两个 `PT_LOAD`、复制 `p_filesz` bytes、用 `rep stosb` 清零 `p_memsz-p_filesz=0x4008` bytes，并发布 `e_entry=0x10000`。checker 破坏临时镜像的 raw LBA 1..4 后仍能启动，证明运行路径来自 ELF；绿灯显示 `lesson23_bss_probe=0`、`RSP=0x15000`、ack=`0x214b4f3436464c45`（bytes `ELF64OK!`），全部旧回归与站点检查通过。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。

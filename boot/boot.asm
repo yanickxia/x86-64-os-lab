@@ -178,7 +178,8 @@ long_mode_entry:
 
     ; SysV arg 1: physical boot_info address, valid through the identity map.
     mov edi, BOOT_INFO_ADDR
-    mov rax, KERNEL_LOAD_ADDR
+    ; Stage 2 copied the ELF e_entry value into the handoff header.
+    mov rax, [abs BOOT_INFO_ADDR + 24]
     jmp rax
 
 .long_mode_hang:
@@ -194,19 +195,8 @@ load_kernel:
     push dx
     push es
 
-    ;
-    mov ax, KERNEL_LOAD_SEGMENT
-    mov es, ax
-    mov bx, 0x0000
-
-    mov ah, 0x02
-    ; RED / TODO (lesson 20): load the complete KERNEL_SECTORS-sector image.
-    mov al, KERNEL_SECTORS
-    mov ch, 0x00
-    mov cl, 0x02
-    mov dh, 0x00
-    int 0x13
-    jc .disk_read_failed
+    ; Lesson 23 graduates from the historical raw payload at LBA 1. Stage 1
+    ; now loads only stage 2; stage 2 reads and interprets the ELF image.
     call load_stage2
 
     ; RED / TODO (lesson 21): call the loaded stage 2 entry, then let it return.

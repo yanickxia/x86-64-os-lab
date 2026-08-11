@@ -7,6 +7,8 @@ boot_bin="$2"
 kernel_bin="$3"
 stage2_bin="${4:-}"
 stage2_lba="${5:-}"
+kernel_load_elf="${6:-}"
+kernel_load_elf_lba="${7:-}"
 expected_size=$((2880 * 512))
 actual_size="$(wc -c < "$disk_image" | tr -d ' ')"
 kernel_size="$(wc -c < "$kernel_bin" | tr -d ' ')"
@@ -46,6 +48,15 @@ if [[ -n "$stage2_bin" ]]; then
         exit 1
     fi
     print "disk image check: ${stage2_sectors}-sector stage 2 is present at LBA ${stage2_lba}"
+fi
+
+if [[ -n "$kernel_load_elf" ]]; then
+    kernel_load_elf_size="$(wc -c < "$kernel_load_elf" | tr -d ' ')"
+    if ! cmp -s "$kernel_load_elf" <(dd if="$disk_image" bs=1 skip="$((kernel_load_elf_lba * 512))" count="$kernel_load_elf_size" status=none); then
+        print -u2 "disk image check: loader-facing ELF at LBA ${kernel_load_elf_lba} does not match ${kernel_load_elf}"
+        exit 1
+    fi
+    print "disk image check: ${kernel_load_elf_size}-byte ELF image is present at LBA ${kernel_load_elf_lba}"
 fi
 
 xxd -g 1 -s 512 -l 16 "$disk_image"

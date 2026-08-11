@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>E820 Boot Info 已抵达 C</h2>
-            <p>stage 2 已从 BIOS 收集物理内存图，发布带边界的 boot_info；64 位入口通过 RDI 交接，C 校验后写出独立回执。</p>
+            <h2>ELF 运行环境合同已建立</h2>
+            <p>stage 2 已按 PT_LOAD 装载 kernel、清零 .bss 并发布动态 entry；kernel 使用自己的栈和既有 boot_info 参数进入 C。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>E820 → BOOT_INFO → C</code>
+            <code>PT_LOAD → ZERO-FILL → C</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>
