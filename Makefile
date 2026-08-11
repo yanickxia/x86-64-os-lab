@@ -36,7 +36,7 @@ STAGE2_LOAD_ADDR := 0x8000
 STAGE2_HANDSHAKE_ADDR := 0x7000
 KERNEL_SRC := kernel/payload.asm
 KERNEL_C_SRCS := kernel/main.c kernel/interrupts.c
-KERNEL_HEADERS := kernel/interrupts.h
+KERNEL_HEADERS := kernel/interrupts.h kernel/boot_info.h
 KERNEL_LINKER := kernel/linker.ld
 KERNEL_OBJ := build/kernel.o
 KERNEL_C_OBJS := build/main.o build/interrupts.o
@@ -94,7 +94,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-kernel-entry check-kernel-elf check-c-kernel check-exception
+.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-kernel-entry check-kernel-elf check-c-kernel check-exception
 
 check-tools:
 	@set -e; \
@@ -262,6 +262,12 @@ inspect-stage2: image
 	@xxd -g 1 -s 0xa00 -l 24 $(OS_IMAGE)
 	@xxd -g 1 -s 0xdf0 -l 16 $(OS_IMAGE)
 
+inspect-boot-info: $(STAGE2_BIN) $(KERNEL_ELF)
+	@printf '%s\n' '== E820 query and boot_info publication in stage 2 =='
+	@dd if=$(STAGE2_BIN) bs=1 skip=8 status=none | ndisasm -b 16 -o 0x8008 - | rg -n 'int 0x15|534d4150|5008|5020|ret' | head -24
+	@printf '%s\n' '== C boot_info consumer =='
+	@x86_64-elf-objdump -drS --disassemble=kernel_main $(KERNEL_ELF) | rg -C 3 '5000|7010|214b4f43|boot_info|entry_count|type'
+
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
@@ -306,6 +312,9 @@ check-multisector-load: check-image $(KERNEL_BIN)
 
 check-stage2-handoff: check-image $(STAGE2_BIN)
 	@zsh scripts/check-stage2-handoff.zsh $(OS_IMAGE) $(STAGE2_BIN) $(STAGE2_LOAD_ADDR) $(STAGE2_HANDSHAKE_ADDR) $(DEBUGCON_EXPECTED)
+
+check-e820-boot-info: check-image $(STAGE2_BIN) $(KERNEL_ELF)
+	@zsh scripts/check-e820-boot-info.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
 
 check-kernel-entry: check-image
 	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(KERNEL_ENTRY_EXPECTED)

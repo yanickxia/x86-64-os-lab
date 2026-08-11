@@ -26,6 +26,7 @@ KERNEL_LOAD_ADDR equ KERNEL_LOAD_SEGMENT << 4
 %ifndef STAGE2_LOAD_ADDR
 %define STAGE2_LOAD_ADDR 0x8000
 %endif
+BOOT_INFO_ADDR equ 0x5000
 
 
 start:
@@ -175,6 +176,8 @@ long_mode_entry:
     mov al, 'L'
     out 0xe9, al
 
+    ; SysV arg 1: physical boot_info address, valid through the identity map.
+    mov edi, BOOT_INFO_ADDR
     mov rax, KERNEL_LOAD_ADDR
     jmp rax
 

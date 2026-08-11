@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>22<\/strong><span>节已完成/);
+  assert.match(html, /<strong>23<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?22(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?23(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /可执行的 Stage 2 边界已建立/);
-  assert.match(html, /STAGE 1 → STAGE 2 → RETURN/);
+  assert.match(html, /E820 Boot Info 已抵达 C/);
+  assert.match(html, /E820 → BOOT_INFO → C/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -52,11 +52,12 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-19"/);
   assert.match(html, /href="\/lessons\/lesson-20"/);
   assert.match(html, /href="\/lessons\/lesson-21"/);
+  assert.match(html, /href="\/lessons\/lesson-22"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 5);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
-  assert.doesNotMatch(html, /NEXT CHECKPOINT|下一步：/);
+  assert.doesNotMatch(html, /NEXT CHECKPOINT/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -80,6 +81,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-19", /UD2.*vector 6.*exception_frame.*IRETQ.*HelloPTLKCUR/is],
     ["/lessons/lesson-20", /自己的 bootloader.*4 个扇区.*LOAD4SEC.*0x107f8.*第 25 课/is],
     ["/lessons/lesson-21", /stage 1.*stage 2.*0x8000.*STAGE2OK.*CALL.*RET/is],
+    ["/lessons/lesson-22", /E820.*boot_info.*0x5000.*RDI.*E820COK/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

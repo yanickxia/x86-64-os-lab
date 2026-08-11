@@ -183,6 +183,14 @@ const lessonMeta = [
     summary: "让 stage 1 加载并调用独立 stage2.bin，用 RAM 握手区分“字节已加载”和“CPU 确实执行”。",
     takeaway: "stage 1 CALL → stage 2 RET",
   },
+  {
+    id: "22",
+    slug: "lesson-22",
+    phase: "Bootloader 完成",
+    status: "completed",
+    summary: "由 stage 2 查询 BIOS E820，发布带版本和边界的 boot_info，并通过 RDI 交给 64 位 C 内核。",
+    takeaway: "E820 → boot_info → RDI → C",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

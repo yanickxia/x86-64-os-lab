@@ -47,6 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 每课只引入一个主要机制。
 - 每课在练习前列出先修知识，并讲清本课新增的最小语法与机器模型。
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
+- 首次出现的术语或测试机制必须先定义角色和边界：谁产生、谁消费、谁观察、它属于硬件/标准协议还是课程测试基础设施，以及“出现/不出现”分别能证明和不能证明什么。尤其不能直接使用 acknowledgement/ack、handshake、magic、producer/consumer 等词而只给结果值。
 - 写代码前先预测机器状态和输出。
 - “实验前预测/推演”必须放在先修知识、机制正文和红灯成因说明之后，紧邻第一次实际运行之前；不能为了形式上“预测在前”而让学生在正文讲解前作答。预测之前的红灯小节只能展示输入、错误代码与判定规则，不运行实验，也不公布真实机器的精确结果。每一题都必须能从页面给出的源码、地址、工具规则与前置状态推出“输入 → 结论”，不能要求学生猜未展示的代码或工具隐藏行为。若无法推出，应补输入或移到实验后观察题。学生已经写下的错误答案必须原样保留，随后另做复盘。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
@@ -83,6 +84,7 @@ make check-c-kernel      # 汇编入口调用 kernel_main，C 通过 debug_putc 
 make check-exception     # #UD 经 IDT vector 6 进入 C handler，IRETQ 后回到 0x1000e
 make check-multisector-load # 自制 loader 把 4-sector kernel 的尾部标记读到 0x107f8
 make check-stage2-handoff # stage 1 加载并调用 0x8000，stage 2 在 0x7000 写握手后返回
+make check-e820-boot-info # stage 2 发布 E820 map，C 从 RDI=0x5000 消费并写 0x7010 ack
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -98,6 +100,7 @@ make inspect-exception   # 查看 IDT/#UD symbols、汇编入口和 C handler �
 make inspect-kernel-span # 查看 2048-byte kernel.bin 及镜像中的尾部 LOAD4SEC
 make inspect-stage2      # 查看 stage2.bin 与 os.img LBA 5 中的入口/尾部 bytes
 make disassemble-stage2  # 从真实入口 0x8008 按 16 位规则反汇编 stage 2
+make inspect-boot-info    # 查看 stage 2 E820 loop/count publication 与 C consumer
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
@@ -145,6 +148,8 @@ npm run lint
 
 第 21 课在 `load_kernel` 后半加入 `load_stage2`：它从 CHS sector 6..7（LBA 5..6）把 1024-byte `build/stage2.bin` 读到 physical `0x8000..0x83ff`。lesson-21 的 3-byte 槽位固定在 `0x7d6e..0x7d70`；红灯是三个 NOP，绿灯为 `CALL STAGE2_LOAD_ADDR`。stage 2 在 `0x7000` 写入 `STAGE2OK` 后 `RET`，旧 A20/GDT/long-mode/kernel 路径仍由 stage 1 执行。boot sector 当前有效代码结束约在 offset `0x19f`，仍由动态 `times` 填充到签名。
 
+第 22 课的 `long_mode_entry` 在跳到 kernel 前执行 `mov edi,0x5000`，按 SysV ABI 把恒等映射下的 `boot_info` 指针放进 `RDI`。`kernel_call_stub` 不得在 `CALL kernel_main` 前破坏 `RDI`；C 入口现为 `kernel_main(const struct boot_info *)`。
+
 `org 0x7c00` 只告诉 NASM 假设代码位于该地址以便算标签，不负责加载；填充一律用 `times 510 - ($ - $$) db 0` 这种动态表达式，不要写死字节数。
 
 ### kernel/：独立载荷的 ELF 构建管线
@@ -168,7 +173,7 @@ npm run lint
 
 ### boot/stage2.asm：可执行的迁移边界
 
-`stage2.asm` 是 `ORG 0x8000` 的独立 16-bit flat binary，当前固定 2 sectors / 1024 bytes。offset 0 是跳到 `0x8008` 的 short jump，随后六字节 magic `STAGE2`；offset `0x3f8` 是尾部 `S2TAIL!!`。入口只向 physical `0x7000` 写八字节 `STAGE2OK` 并返回。起点/尾部证明完整加载，独立 handshake 证明真实执行；不要用 debug output 代替这两类证据。第 22 课起 E820 等职责会迁入这里。
+`stage2.asm` 是 `ORG 0x8000` 的独立 16-bit flat binary，当前固定 2 sectors / 1024 bytes。offset 0 是跳到 `0x8008` 的 short jump，随后六字节 magic `STAGE2`；offset `0x3f8` 是尾部 `S2TAIL!!`。入口先向 physical `0x7000` 写八字节 `STAGE2OK`，再用 `INT 15h E820h` 把最多 32 个 24-byte entries 收集到 `0x5020..0x531f`。32-byte `boot_info` header 位于 `0x5000`，entry_count offset 为 8；C acknowledgement `E820COK!` 位于 `0x7010`。起点/尾部证明完整加载，两个独立 handshake 分别证明 stage 2 和 C consumer 真实执行。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
@@ -214,7 +219,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–21 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–22 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -255,5 +260,7 @@ npm run lint
 第 20 课已结课：构建产物扩为 4 sectors / 2048 bytes，尾部 `LOAD4SEC` 位于 kernel offset `0x7f8`、镜像 offset `0x9f8`、guest physical `0x107f8`。BIOS `INT 13h AH=02h` 的 `AL` 使用 `KERNEL_SECTORS`，一次连续读取覆盖 CHS sector 2..5；完整输出仍为 `HelloPTLKCUR`，且 `check-multisector-load` 已证明最后一个 sector 确实进入 RAM。
 
 第 21 课已结课：stage 1 从 LBA 5..6 把完整 stage2 image 加载到 `0x8000..0x83ff`，在 `0x7d6e` 用 3-byte `CALL STAGE2_LOAD_ADDR` 移交控制。stage 2 写入 qword `0x4b4f324547415453`（bytes `STAGE2OK`）后 `RET` 到 `0x7d71`，旧输出仍为 `HelloPTLKCUR`。起点/尾部证明 loaded，独立 handshake 证明 executed；第 0–20 课全部回归通过。
+
+第 22 课已结课：stage 2 的 E820 loop 把非空 firmware entries 写到 `0x5020`，并用一条 16-bit store 把内部 `BP` 发布到 header 的 `entry_count`（offset `0x5008`）。本机得到 7/32 entries；64 位入口以 `RDI=0x5000` 交给 C，C 校验 header 和可用 range 后在 `0x7010` 写 qword `0x214b4f4330323845`（bytes `E820COK!`）。该 count 由固件结果动态决定，不被 checker 写死；全部旧回归通过。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。

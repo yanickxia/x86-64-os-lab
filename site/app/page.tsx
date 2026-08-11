@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>可执行的 Stage 2 边界已建立</h2>
-            <p>stage 1 已能完整加载并调用独立 stage 2；加载起点、镜像尾部、执行握手和返回旧路径都有彼此独立的机器证据。</p>
+            <h2>E820 Boot Info 已抵达 C</h2>
+            <p>stage 2 已从 BIOS 收集物理内存图，发布带边界的 boot_info；64 位入口通过 RDI 交接，C 校验后写出独立回执。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>STAGE 1 → STAGE 2 → RETURN</code>
+            <code>E820 → BOOT_INFO → C</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>
