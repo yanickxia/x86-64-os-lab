@@ -86,6 +86,7 @@ make check-multisector-load # 自制 loader 把 4-sector kernel 的尾部标记�
 make check-stage2-handoff # stage 1 加载并调用 0x8000，stage 2 在 0x7000 写握手后返回
 make check-e820-boot-info # stage 2 发布 E820 map，C 从 RDI=0x5000 消费并写 0x7010 ack
 make check-elf-loader    # 破坏临时镜像的 raw LBA 1，验证 PT_LOAD/.bss/stack/e_entry 与 0x7018 ack
+make check-bootloader-graduation # 聚合 stage2/E820/ELF/long-mode/#UD 既有证据；第 24 课不新增 guest 机制
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -221,7 +222,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–23 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–24 课已结课；第 24 课是无红灯/绿灯的 bootloader 毕业审计章。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -266,5 +267,7 @@ npm run lint
 第 22 课已结课：stage 2 的 E820 loop 把非空 firmware entries 写到 `0x5020`，并用一条 16-bit store 把内部 `BP` 发布到 header 的 `entry_count`（offset `0x5008`）。本机得到 7/32 entries；64 位入口以 `RDI=0x5000` 交给 C，C 校验 header 和可用 range 后在 `0x7010` 写 qword `0x214b4f4330323845`（bytes `E820COK!`）。该 count 由固件结果动态决定，不被 checker 写死；全部旧回归通过。
 
 第 23 课已结课：stage 2 从 LBA 18 把精简 ELF 读到 `0x20000`，遍历两个 `PT_LOAD`、复制 `p_filesz` bytes、用 `rep stosb` 清零 `p_memsz-p_filesz=0x4008` bytes，并发布 `e_entry=0x10000`。checker 破坏临时镜像的 raw LBA 1..4 后仍能启动，证明运行路径来自 ELF；绿灯显示 `lesson23_bss_probe=0`、`RSP=0x15000`、ack=`0x214b4f3436464c45`（bytes `ELF64OK!`），全部旧回归与站点检查通过。
+
+第 24 课已结课且未修改 `boot/` 或 `kernel/`：`make check-bootloader-graduation` 聚合 stage2/E820/ELF/long-mode/#UD 证据，学习记录完成了四段职责与边界总结。学习者已能区分“由 Limine 等成熟 bootloader 替换的平台限制”和“仍必须由 kernel 实现的 allocator、正式页表、完整 IDT、中断/调度等 OS 能力”。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。

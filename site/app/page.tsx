@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>ELF 运行环境合同已建立</h2>
-            <p>stage 2 已按 PT_LOAD 装载 kernel、清零 .bss 并发布动态 entry；kernel 使用自己的栈和既有 boot_info 参数进入 C。</p>
+            <h2>自制 Bootloader 已毕业</h2>
+            <p>stage 1、stage 2、boot_info、ELF 与 C handoff 的职责和证据已经闭环；下一阶段将用成熟 loader 替换平台限制，进入内核主线。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>PT_LOAD → ZERO-FILL → C</code>
+            <code>IMPLEMENTED → AUDITED → HANDOFF</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

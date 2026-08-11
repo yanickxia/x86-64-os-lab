@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>24<\/strong><span>节已完成/);
+  assert.match(html, /<strong>25<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?24(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?25(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /ELF 运行环境合同已建立/);
-  assert.match(html, /PT_LOAD → ZERO-FILL → C/);
+  assert.match(html, /自制 Bootloader 已毕业/);
+  assert.match(html, /IMPLEMENTED → AUDITED → HANDOFF/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -54,6 +54,7 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-21"/);
   assert.match(html, /href="\/lessons\/lesson-22"/);
   assert.match(html, /href="\/lessons\/lesson-23"/);
+  assert.match(html, /href="\/lessons\/lesson-24"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 5);
@@ -84,6 +85,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-21", /stage 1.*stage 2.*0x8000.*STAGE2OK.*CALL.*RET/is],
     ["/lessons/lesson-22", /E820.*boot_info.*0x5000.*RDI.*E820COK/is],
     ["/lessons/lesson-23", /PT_LOAD.*p_filesz.*p_memsz.*\.bss.*ELF64OK.*kernel_stack/is],
+    ["/lessons/lesson-24", /毕业审计.*stage 1.*stage 2.*boot_info.*PT_LOAD.*Limine/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

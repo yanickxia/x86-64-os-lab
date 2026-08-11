@@ -97,7 +97,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception
+.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
 
 check-tools:
 	@set -e; \
@@ -346,3 +346,10 @@ check-c-kernel: check-image $(KERNEL_ELF)
 
 check-exception: check-image $(KERNEL_ELF)
 	@zsh scripts/check-exception.zsh $(OS_IMAGE) $(KERNEL_ELF) $(DEBUGCON_EXPECTED)
+
+check-bootloader-graduation: check-boot check-stage2-handoff check-e820-boot-info check-elf-loader check-long-mode check-exception
+	@printf '%s\n' 'bootloader graduation audit passed:'
+	@printf '%s\n' '  stage 1 → stage 2 execution boundary'
+	@printf '%s\n' '  E820 → boot_info → RDI → C'
+	@printf '%s\n' '  ELF PT_LOAD → .bss zero-fill → dedicated stack'
+	@printf '%s\n' '  long mode + minimal #UD recovery remain intact'

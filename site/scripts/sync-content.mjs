@@ -199,6 +199,14 @@ const lessonMeta = [
     summary: "承接第 22 课，把 kernel 装载职责从 stage 1 迁入 stage 2：按 ELF PT_LOAD 复制 file bytes、清零 .bss，再进入 C。",
     takeaway: "PT_LOAD → .bss → stack → C",
   },
+  {
+    id: "24",
+    slug: "lesson-24",
+    phase: "Bootloader 毕业",
+    status: "completed",
+    summary: "不再增加启动机制：审计 stage 1、stage 2、boot_info、ELF、栈与 C handoff，明确成熟 loader 和后续 kernel 各自接手什么。",
+    takeaway: "IMPLEMENTED ↔ DEFERRED ↔ KERNEL-OWNED",
+  },
 ];
 
 function titleFromMarkdown(markdown) {
