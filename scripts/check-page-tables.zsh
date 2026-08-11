@@ -75,17 +75,20 @@ done
 
 if [[ ("$pml4_line" != *"0x0000000000002003"* && "$pml4_line" != *"0x0000000000002023"*) || \
       ("$pdpt_line" != *"0x0000000000003003"* && "$pdpt_line" != *"0x0000000000003023"*) || \
-      ("$pd_line" != *"0x0000000000000083"* && "$pd_line" != *"0x00000000000000a3"*) ]]; then
+      ("$pd_line" != *"0x0000000000000083"* && \
+       "$pd_line" != *"0x00000000000000a3"* && \
+       "$pd_line" != *"0x00000000000000c3"* && \
+       "$pd_line" != *"0x00000000000000e3"*) ]]; then
     print -u2 "page-table check: expected PML4[0]=0x2003 or 0x2023 (Accessed)"
     print -u2 "page-table check: actual   PML4[0]=$pml4_line"
     print -u2 "page-table check: expected PDPT[0]=0x3003 or 0x3023 (Accessed)"
     print -u2 "page-table check: actual   PDPT[0]=$pdpt_line"
-    print -u2 "page-table check: expected PD[0]  =0x0083 or 0x00a3 (Accessed)"
+    print -u2 "page-table check: expected PD[0]  =0x0083 plus optional Accessed/Dirty bits"
     print -u2 "page-table check: actual   PD[0]  =$pd_line"
     exit 1
 fi
 
-print "page-table check passed: low 2 MiB identity map is present (Accessed bit may be set)"
+print "page-table check passed: low 2 MiB identity map is present (CPU Accessed/Dirty bits may be set)"
 print "page-table state: PML4[0]=$pml4_line"
 print "page-table state: PDPT[0]=$pdpt_line"
 print "page-table state: PD[0]  =$pd_line"

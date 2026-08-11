@@ -390,6 +390,117 @@ pre,
   border-left: 1px solid var(--line);
 }
 
+.lesson-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.lesson-section {
+  overflow: clip;
+  border: 1px solid var(--line);
+  background: rgba(251, 248, 241, 0.4);
+  scroll-margin-top: 96px;
+}
+
+.lesson-section summary {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  min-height: 116px;
+  padding: 22px 26px;
+  cursor: pointer;
+  list-style: none;
+  transition: background 160ms ease;
+}
+
+.lesson-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.lesson-section summary:hover,
+.lesson-section summary:focus-visible {
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.lesson-section summary:focus-visible {
+  outline: 3px solid rgba(23, 107, 112, 0.28);
+  outline-offset: -3px;
+}
+
+.lesson-section[open] summary {
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 252, 244, 0.72);
+}
+
+.lesson-section.is-current {
+  border-top: 3px solid var(--orange);
+}
+
+.lesson-section__index {
+  color: var(--blue);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.lesson-section__copy {
+  display: grid;
+  gap: 5px;
+}
+
+.lesson-section__copy strong {
+  font-family: Georgia, "Songti SC", serif;
+  font-size: 25px;
+  line-height: 1.25;
+}
+
+.lesson-section__copy small {
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.lesson-section__meta {
+  display: grid;
+  grid-template-columns: auto auto 22px;
+  gap: 14px;
+  align-items: center;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.lesson-section__meta code {
+  color: var(--blue-dark);
+  font-size: 12px;
+}
+
+.lesson-section__meta small {
+  font-size: 11px;
+}
+
+.lesson-section__chevron {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: var(--blue);
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.lesson-section[open] .lesson-section__chevron {
+  transform: rotate(180deg);
+}
+
+.lesson-section > .lesson-grid {
+  border-top: 0;
+  border-left: 0;
+}
+
 .lesson-card {
   min-height: 330px;
   padding: 26px;
@@ -926,6 +1037,35 @@ pre,
   .lesson-grid--index,
   .method-list {
     grid-template-columns: 1fr;
+  }
+
+  .lesson-section summary {
+    grid-template-columns: 1fr auto;
+    gap: 8px 16px;
+    min-height: 0;
+    padding: 19px 18px;
+  }
+
+  .lesson-section__index {
+    grid-column: 1;
+  }
+
+  .lesson-section__copy {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .lesson-section__copy strong {
+    font-size: 22px;
+  }
+
+  .lesson-section__meta {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .lesson-section__meta small {
+    display: none;
   }
 
   .lesson-card {

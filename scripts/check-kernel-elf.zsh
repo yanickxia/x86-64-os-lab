@@ -33,7 +33,9 @@ for expected_symbol in \
     "${expected_base} T kernel_start" \
     "0000000000010002 T kernel_magic" \
     "${expected_entry} T kernel_entry" \
-    "${expected_hang} T kernel_hang"; do
+    "${expected_hang} T kernel_hang" \
+    " T debug_putc" \
+    " T kernel_main"; do
     if [[ "$symbols" != *"$expected_symbol"* ]]; then
         print -u2 "kernel ELF check: expected symbol '${expected_symbol}'"
         failed=1
@@ -51,7 +53,7 @@ if [[ "$actual_size" != "512" ]]; then
 fi
 
 actual_prefix="$(xxd -p -l 16 "$kernel_bin")"
-if [[ "$actual_prefix" != "eb084b45524e454c3634b04be6e9ebfe" ]]; then
+if [[ "$actual_prefix" != "eb084b45524e454c3634eb049090ebfe" ]]; then
     print -u2 "kernel ELF check: raw binary prefix changed, got ${actual_prefix}"
     failed=1
 fi
@@ -64,5 +66,5 @@ if (( failed )); then
     exit 1
 fi
 
-print "kernel ELF check passed: ELF64 entry=0x10000, .text VMA=0x10000, raw payload=512 bytes"
+print "kernel ELF check passed: assembly and C objects linked at 0x10000, raw payload=512 bytes"
 print -- "$symbols"

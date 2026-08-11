@@ -3,7 +3,7 @@
 set -eu
 
 disk_image="$1"
-expected_output="${2:-HelloPTLK}"
+expected_output_prefix="${2:-HelloPTLK}"
 monitor_socket="build/kernel-entry-monitor-${$}.sock"
 output_file="build/kernel-entry-debugcon-${$}.log"
 qemu_pid=""
@@ -50,7 +50,7 @@ qemu-system-x86_64 \
 qemu_pid="$!"
 
 for attempt in {1..50}; do
-    if [[ -S "$monitor_socket" && -f "$output_file" && "$(< "$output_file")" == "$expected_output" ]]; then
+    if [[ -S "$monitor_socket" && -f "$output_file" && "$(< "$output_file")" == "${expected_output_prefix}"* ]]; then
         break
     fi
     sleep 0.1
@@ -66,9 +66,9 @@ monitor_output="$(printf 'info registers\nquit\n' | socat - "UNIX-CONNECT:$monit
 qemu_pid=""
 failed=0
 
-if [[ "$actual_output" != "$expected_output" ]]; then
+if [[ "$actual_output" != "${expected_output_prefix}"* ]]; then
     print -u2 "kernel-entry check: the payload never wrote its own character to port 0xe9"
-    print -u2 "kernel-entry check: expected debug output '${expected_output}', got '${actual_output}'"
+    print -u2 "kernel-entry check: expected debug output prefix '${expected_output_prefix}', got '${actual_output}'"
     failed=1
 fi
 
@@ -94,5 +94,5 @@ if (( failed )); then
     exit 1
 fi
 
-print "kernel-entry check passed: payload executing at 0x1000e under CS=0x18 (CS64)"
+print "kernel-entry check passed: payload output begins '${expected_output_prefix}' and RIP=0x1000e under CS=0x18 (CS64)"
 print -- "$monitor_output"

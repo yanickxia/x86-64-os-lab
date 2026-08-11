@@ -62,6 +62,64 @@ export function LessonCard({ lesson }: { lesson: Lesson }) {
   );
 }
 
+type LessonSection = {
+  id: string;
+  title: string;
+  description: string;
+  lessons: readonly Lesson[];
+};
+
+export function LessonSectionList({ sections, index = false }: {
+  sections: readonly LessonSection[];
+  index?: boolean;
+}) {
+  const hasNextLesson = sections.some((section) =>
+    section.lessons.some((lesson) => lesson.status === "next")
+  );
+  const latestLesson = sections.at(-1)?.lessons.at(-1);
+
+  return (
+    <div className="lesson-sections">
+      {sections.map((section) => {
+        const completedCount = section.lessons.filter(
+          (lesson) => lesson.status === "completed",
+        ).length;
+        const isCurrent = section.lessons.some((lesson) => lesson.status === "next") ||
+          (!hasNextLesson && section.lessons.some((lesson) => lesson.slug === latestLesson?.slug));
+        const firstLesson = section.lessons[0];
+        const lastLesson = section.lessons.at(-1);
+
+        return (
+          <details
+            className={`lesson-section${isCurrent ? " is-current" : ""}`}
+            id={`section-${section.id}`}
+            key={section.id}
+            open={isCurrent}
+          >
+            <summary>
+              <span className="lesson-section__index">SECTION {section.id}</span>
+              <span className="lesson-section__copy">
+                <strong>{section.title}</strong>
+                <small>{section.description}</small>
+              </span>
+              <span className="lesson-section__meta">
+                <code>{firstLesson.id}—{lastLesson?.id}</code>
+                <small>{completedCount}/{section.lessons.length} 已完成</small>
+                <span className="lesson-section__chevron" aria-hidden="true">⌄</span>
+              </span>
+            </summary>
+            <div className={`lesson-grid${index ? " lesson-grid--index" : ""}`}>
+              {section.lessons.map((lesson) => (
+                <LessonCard key={lesson.slug} lesson={lesson} />
+              ))}
+            </div>
+          </details>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MarkdownContent({ markdown }: { markdown: string }) {
   return (
     <div

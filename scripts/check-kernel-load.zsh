@@ -3,10 +3,15 @@
 set -eu
 
 disk_image="$1"
-expected_output="${2:-HelloPTL}"
+kernel_bin="$2"
+expected_output="${3:-HelloPTL}"
 monitor_socket="build/kernel-load-monitor-${$}.sock"
 output_file="build/kernel-load-debugcon-${$}.log"
 qemu_pid=""
+
+expected_fields=(${(z)"$(xxd -e -g 8 -l 16 "$kernel_bin")"})
+expected_qword0="0x${expected_fields[2]}"
+expected_qword1="0x${expected_fields[3]}"
 
 cleanup() {
     if [[ -n "$qemu_pid" ]]; then
@@ -56,10 +61,10 @@ fi
 monitor_output="$(printf 'xp /2gx 0x10000\nquit\n' | socat - "UNIX-CONNECT:$monitor_socket")"
 qemu_pid=""
 
-if [[ "$monitor_output" != *"0x4c454e52454b08eb"* || \
-      "$monitor_output" != *"0xfeebe9e64bb03436"* ]]; then
+if [[ "$monitor_output" != *"$expected_qword0"* || \
+      "$monitor_output" != *"$expected_qword1"* ]]; then
     print -u2 "kernel-load check: expected sector-2 payload at physical 0x10000"
-    print -u2 "kernel-load check: expected qwords 0x4c454e52454b08eb and 0xfeebe9e64bb03436"
+    print -u2 "kernel-load check: expected qwords ${expected_qword0} and ${expected_qword1} from ${kernel_bin}"
     print -u2 "kernel-load check: actual monitor output:"
     print -u2 -- "$monitor_output"
     exit 1

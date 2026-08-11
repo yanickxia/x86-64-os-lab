@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LessonCard, StatusBadge } from "./components";
-import { course } from "../lib/course";
+import { LessonSectionList, StatusBadge } from "./components";
+import { course, getCourseSections } from "../lib/course";
 
 export const metadata: Metadata = {
   title: "从 CPU 复位到自己的内核",
@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   const nextLesson = course.lessons.find((lesson) => lesson.status === "next");
+  const sections = getCourseSections();
   const progress = Math.round((course.completedCount / course.lessons.length) * 100);
 
   return (
@@ -88,11 +89,7 @@ export default function Home() {
           </div>
           <Link href="/lessons">课程总览 →</Link>
         </div>
-        <div className="lesson-grid">
-          {course.lessons.map((lesson) => (
-            <LessonCard key={lesson.slug} lesson={lesson} />
-          ))}
-        </div>
+        <LessonSectionList sections={sections} />
       </section>
 
       <section className="method-section shell">

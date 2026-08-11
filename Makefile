@@ -27,15 +27,41 @@ QEMU_RESET_FLAGS := \
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
 KERNEL_SRC := kernel/payload.asm
+KERNEL_C_SRC := kernel/main.c
 KERNEL_LINKER := kernel/linker.ld
 KERNEL_OBJ := build/kernel.o
+KERNEL_C_OBJ := build/main.o
+KERNEL_OBJS := $(KERNEL_OBJ) $(KERNEL_C_OBJ)
 KERNEL_ELF := build/kernel.elf
 KERNEL_BIN := build/kernel.bin
 OS_IMAGE := build/os.img
 FLOPPY_SECTORS := 2880
 
+KERNEL_CFLAGS := \
+	-std=c11 \
+	-O2 \
+	-g \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-ffreestanding \
+	-fno-builtin \
+	-fno-stack-protector \
+	-fno-pic \
+	-fno-pie \
+	-fno-asynchronous-unwind-tables \
+	-fno-unwind-tables \
+	-m64 \
+	-mno-red-zone \
+	-mno-mmx \
+	-mno-sse \
+	-mno-sse2
+
 # Full debug-console output, asserted for exact equality.
-DEBUGCON_EXPECTED := HelloPTLK
+DEBUGCON_EXPECTED := HelloPTLKC
+# Lesson 13 only proves that the boot path reached the payload. Later payload
+# code may append output, so this remains a synchronization prefix.
+KERNEL_ENTRY_EXPECTED := HelloPTLK
 # Prefix that only means "the boot-sector switch sequence finished". Checks for
 # earlier lessons use it purely to synchronize before querying machine state,
 # so appending a new character in a later lesson must not turn them red.
@@ -54,7 +80,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry check-kernel-elf
+.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry check-kernel-elf check-c-kernel
 
 check-tools:
 	@set -e; \
@@ -85,8 +111,12 @@ $(KERNEL_OBJ): $(KERNEL_SRC)
 	@mkdir -p build
 	@nasm -f elf64 -g -F dwarf -o $@ $<
 
-$(KERNEL_ELF): $(KERNEL_OBJ) $(KERNEL_LINKER)
-	@x86_64-elf-ld -nostdlib -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJ)
+$(KERNEL_C_OBJ): $(KERNEL_C_SRC)
+	@mkdir -p build
+	@x86_64-elf-gcc $(KERNEL_CFLAGS) -c -o $@ $<
+
+$(KERNEL_ELF): $(KERNEL_OBJS) $(KERNEL_LINKER)
+	@x86_64-elf-ld -nostdlib -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJS)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	@x86_64-elf-objcopy -O binary $< $@
@@ -150,12 +180,10 @@ disassemble-boot: boot
 	@dd if=$(BOOT_BIN) bs=1 skip=0x150 count=0x30 status=none | ndisasm -w -b 16 -o 0x7d50 -
 
 disassemble-kernel: $(KERNEL_BIN)
-	@printf '%s\n' '== payload entry jump at 0x10000 =='
-	@dd if=$(KERNEL_BIN) bs=1 count=2 status=none | ndisasm -w -b 64 -o 0x10000 -
-	@printf '%s\n' '== KERNEL64 magic data at 0x10002-0x10009 (not instructions) =='
+	@printf '%s\n' '== linked kernel disassembly (assembly entry + C) =='
+	@x86_64-elf-objdump -d --start-address=0x10000 --stop-address=0x10040 $(KERNEL_ELF)
+	@printf '%s\n' '== KERNEL64 magic data at raw offset 2 =='
 	@xxd -g 1 -s 2 -l 8 $(KERNEL_BIN)
-	@printf '%s\n' '== payload code at 0x1000a-0x1000f =='
-	@dd if=$(KERNEL_BIN) bs=1 skip=10 count=6 status=none | ndisasm -w -b 64 -o 0x1000a -
 
 inspect-kernel-elf: $(KERNEL_ELF)
 	@printf '%s\n' '== ELF header =='
@@ -164,6 +192,14 @@ inspect-kernel-elf: $(KERNEL_ELF)
 	@x86_64-elf-nm -n $(KERNEL_ELF)
 	@printf '%s\n' '== section headers =='
 	@x86_64-elf-objdump -h $(KERNEL_ELF)
+
+inspect-kernel-c: $(KERNEL_ELF)
+	@printf '%s\n' '== assembly-to-C call site =='
+	@x86_64-elf-objdump -d --disassemble=kernel_call_stub $(KERNEL_ELF)
+	@printf '%s\n' '== kernel_main C source and target instructions =='
+	@x86_64-elf-objdump -drS --disassemble=kernel_main $(KERNEL_ELF)
+	@printf '%s\n' '== assembly debug_putc helper =='
+	@x86_64-elf-objdump -d --disassemble=debug_putc $(KERNEL_ELF)
 
 inspect-image: image
 	@printf '%s\n' '== boot signature and start of sector 2 =='
@@ -205,11 +241,14 @@ check-page-tables: check-image
 check-long-mode: check-image
 	@zsh scripts/check-long-mode.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
 
-check-kernel-load: check-image
-	@zsh scripts/check-kernel-load.zsh $(OS_IMAGE) $(BOOT_SYNC_PREFIX)
+check-kernel-load: check-image $(KERNEL_BIN)
+	@zsh scripts/check-kernel-load.zsh $(OS_IMAGE) $(KERNEL_BIN) $(BOOT_SYNC_PREFIX)
 
 check-kernel-entry: check-image
-	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(KERNEL_ENTRY_EXPECTED)
 
 check-kernel-elf: $(KERNEL_ELF) $(KERNEL_BIN)
 	@zsh scripts/check-kernel-elf.zsh $(KERNEL_ELF) $(KERNEL_BIN)
+
+check-c-kernel: check-image $(KERNEL_ELF)
+	@zsh scripts/check-c-kernel.zsh $(OS_IMAGE) $(KERNEL_ELF) $(DEBUGCON_EXPECTED)

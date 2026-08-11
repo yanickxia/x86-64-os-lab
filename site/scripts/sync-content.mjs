@@ -151,6 +151,14 @@ const lessonMeta = [
     summary: "只用判断解释与因果诊断两部分，检验是否真正理解启动、地址转换和 C 前执行环境。",
     takeaway: "explain · trace · diagnose",
   },
+  {
+    id: "18",
+    slug: "lesson-18",
+    phase: "C 内核入口",
+    status: "completed",
+    summary: "让 64 位汇编入口按 SysV ABI 调用第一个 freestanding C 函数，并用真实输出验证跨语言边界。",
+    takeaway: "ASM CALL → C → port 0xe9",
+  },
 ];
 
 function titleFromMarkdown(markdown) {
