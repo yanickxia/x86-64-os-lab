@@ -4,7 +4,7 @@ set -eu
 
 disk_image="$1"
 kernel_elf="$2"
-expected_output="${3:-HelloPTLKC}"
+expected_output_prefix="${3:-HelloPTLKC}"
 output_file="build/c-kernel-debugcon-${$}.log"
 qemu_pid=""
 
@@ -47,7 +47,7 @@ qemu-system-x86_64 \
 qemu_pid="$!"
 
 for attempt in {1..50}; do
-    if [[ -f "$output_file" && "$(< "$output_file")" == "$expected_output" ]]; then
+    if [[ -f "$output_file" && "$(< "$output_file")" == "$expected_output_prefix"* ]]; then
         break
     fi
     sleep 0.1
@@ -55,11 +55,10 @@ done
 
 actual_output="$(< "$output_file")"
 
-if [[ "$actual_output" != "$expected_output" ]]; then
+if [[ "$actual_output" != "$expected_output_prefix"* ]]; then
     print -u2 "C-kernel check: kernel_main did not produce the expected observable behavior"
-    print -u2 "C-kernel check: expected '${expected_output}', got '${actual_output}'"
-    print -u2 "C-kernel check: implement the single TODO in kernel/main.c"
+    print -u2 "C-kernel check: expected prefix '${expected_output_prefix}', got '${actual_output}'"
     exit 1
 fi
 
-print "C-kernel check passed: assembly called kernel_main and received '${expected_output}'"
+print "C-kernel check passed: assembly called kernel_main and output begins '${expected_output_prefix}'"

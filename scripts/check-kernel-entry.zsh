@@ -8,14 +8,11 @@ monitor_socket="build/kernel-entry-monitor-${$}.sock"
 output_file="build/kernel-entry-debugcon-${$}.log"
 qemu_pid=""
 
-# kernel/payload.asm is assembled with `org 0x10000`:
-#   0x10000  jmp short kernel_entry   (EB 08)
-#   0x10002  db 'KERNEL64'            (8 bytes)
-#   0x1000a  mov al, 'K'              (B0 4B)
-#   0x1000c  out 0xe9, al             (E6 E9)
-#   0x1000e  .hang: jmp .hang         (EB FE)
-# So a payload that really took control parks its RIP at 0x1000e forever.
-expected_rip="RIP=000000000001000e"
+# Lesson 13 only needs to prove that execution entered the independently loaded
+# 512-byte payload. Later lessons may intentionally park at another address in
+# that sector, so do not couple this historical check to kernel_hang forever.
+expected_rip_min="0000000000010000"
+expected_rip_max="00000000000101ff"
 
 # A near jump does not reload CS. The payload must still run under the
 # 64-bit code descriptor installed by lesson 11, selector 0x18.
@@ -65,6 +62,16 @@ actual_output="$(< "$output_file")"
 monitor_output="$(printf 'info registers\nquit\n' | socat - "UNIX-CONNECT:$monitor_socket")"
 qemu_pid=""
 failed=0
+actual_rip="missing"
+
+for line in ${(f)monitor_output}; do
+    line="${line%$'\r'}"
+    if [[ "$line" == RIP=* ]]; then
+        fields=(${(z)line})
+        actual_rip="${fields[1]#RIP=}"
+        break
+    fi
+done
 
 if [[ "$actual_output" != "${expected_output_prefix}"* ]]; then
     print -u2 "kernel-entry check: the payload never wrote its own character to port 0xe9"
@@ -72,13 +79,9 @@ if [[ "$actual_output" != "${expected_output_prefix}"* ]]; then
     failed=1
 fi
 
-if [[ "$monitor_output" != *"$expected_rip"* ]]; then
-    print -u2 "kernel-entry check: RIP is not parked in the payload hang loop"
-    print -u2 "kernel-entry check: expected ${expected_rip} (kernel/payload.asm .hang)"
-    if [[ "$monitor_output" == *"RIP="* ]]; then
-        rip_tail="${monitor_output#*RIP=}"
-        print -u2 "kernel-entry check: actual RIP=${rip_tail%% *}"
-    fi
+if [[ "$actual_rip" == "missing" || "$actual_rip" < "$expected_rip_min" || "$actual_rip" > "$expected_rip_max" ]]; then
+    print -u2 "kernel-entry check: RIP is outside the independently loaded payload"
+    print -u2 "kernel-entry check: expected RIP in [0x10000, 0x10200), got 0x${actual_rip}"
     failed=1
 fi
 
@@ -94,5 +97,5 @@ if (( failed )); then
     exit 1
 fi
 
-print "kernel-entry check passed: payload output begins '${expected_output_prefix}' and RIP=0x1000e under CS=0x18 (CS64)"
+print "kernel-entry check passed: payload output begins '${expected_output_prefix}', RIP=0x${actual_rip} is inside the payload, and CS=0x18 (CS64)"
 print -- "$monitor_output"

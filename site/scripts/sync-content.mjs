@@ -159,6 +159,14 @@ const lessonMeta = [
     summary: "让 64 位汇编入口按 SysV ABI 调用第一个 freestanding C 函数，并用真实输出验证跨语言边界。",
     takeaway: "ASM CALL → C → port 0xe9",
   },
+  {
+    id: "19",
+    slug: "lesson-19",
+    phase: "异常处理",
+    status: "completed",
+    summary: "安装最小 IDT，让 UD2 产生的 #UD 进入 C handler，修改异常帧后通过 IRETQ 恢复执行。",
+    takeaway: "#UD → IDT → C → IRETQ",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

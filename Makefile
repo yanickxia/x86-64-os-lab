@@ -27,11 +27,12 @@ QEMU_RESET_FLAGS := \
 BOOT_SRC := boot/boot.asm
 BOOT_BIN := build/boot.bin
 KERNEL_SRC := kernel/payload.asm
-KERNEL_C_SRC := kernel/main.c
+KERNEL_C_SRCS := kernel/main.c kernel/interrupts.c
+KERNEL_HEADERS := kernel/interrupts.h
 KERNEL_LINKER := kernel/linker.ld
 KERNEL_OBJ := build/kernel.o
-KERNEL_C_OBJ := build/main.o
-KERNEL_OBJS := $(KERNEL_OBJ) $(KERNEL_C_OBJ)
+KERNEL_C_OBJS := build/main.o build/interrupts.o
+KERNEL_OBJS := $(KERNEL_OBJ) $(KERNEL_C_OBJS)
 KERNEL_ELF := build/kernel.elf
 KERNEL_BIN := build/kernel.bin
 OS_IMAGE := build/os.img
@@ -58,7 +59,10 @@ KERNEL_CFLAGS := \
 	-mno-sse2
 
 # Full debug-console output, asserted for exact equality.
-DEBUGCON_EXPECTED := HelloPTLKC
+DEBUGCON_EXPECTED := HelloPTLKCUR
+# Lesson 18 proves the assembly-to-C boundary. Later C code may append output,
+# so its check asserts this synchronization prefix rather than exact equality.
+C_KERNEL_EXPECTED_PREFIX := HelloPTLKC
 # Lesson 13 only proves that the boot path reached the payload. Later payload
 # code may append output, so this remains a synchronization prefix.
 KERNEL_ENTRY_EXPECTED := HelloPTLK
@@ -80,7 +84,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry check-kernel-elf check-c-kernel
+.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry check-kernel-elf check-c-kernel check-exception
 
 check-tools:
 	@set -e; \
@@ -111,7 +115,7 @@ $(KERNEL_OBJ): $(KERNEL_SRC)
 	@mkdir -p build
 	@nasm -f elf64 -g -F dwarf -o $@ $<
 
-$(KERNEL_C_OBJ): $(KERNEL_C_SRC)
+$(KERNEL_C_OBJS): build/%.o: kernel/%.c $(KERNEL_HEADERS)
 	@mkdir -p build
 	@x86_64-elf-gcc $(KERNEL_CFLAGS) -c -o $@ $<
 
@@ -201,6 +205,16 @@ inspect-kernel-c: $(KERNEL_ELF)
 	@printf '%s\n' '== assembly debug_putc helper =='
 	@x86_64-elf-objdump -d --disassemble=debug_putc $(KERNEL_ELF)
 
+inspect-exception: $(KERNEL_ELF)
+	@printf '%s\n' '== lesson IDT and exception symbols =='
+	@x86_64-elf-nm -n $(KERNEL_ELF) | rg 'lesson_idt|isr_invalid_opcode|trigger_invalid_opcode|invalid_opcode_handler|exception_red_hang'
+	@printf '%s\n' '== deliberate invalid-opcode trigger =='
+	@x86_64-elf-objdump -d --disassemble=trigger_invalid_opcode $(KERNEL_ELF)
+	@printf '%s\n' '== invalid-opcode assembly entry =='
+	@x86_64-elf-objdump -d --disassemble=isr_invalid_opcode $(KERNEL_ELF)
+	@printf '%s\n' '== invalid-opcode C policy =='
+	@x86_64-elf-objdump -drS --disassemble=invalid_opcode_handler $(KERNEL_ELF)
+
 inspect-image: image
 	@printf '%s\n' '== boot signature and start of sector 2 =='
 	@xxd -g 1 -s 0x1f0 -l 48 $(OS_IMAGE)
@@ -251,4 +265,7 @@ check-kernel-elf: $(KERNEL_ELF) $(KERNEL_BIN)
 	@zsh scripts/check-kernel-elf.zsh $(KERNEL_ELF) $(KERNEL_BIN)
 
 check-c-kernel: check-image $(KERNEL_ELF)
-	@zsh scripts/check-c-kernel.zsh $(OS_IMAGE) $(KERNEL_ELF) $(DEBUGCON_EXPECTED)
+	@zsh scripts/check-c-kernel.zsh $(OS_IMAGE) $(KERNEL_ELF) $(C_KERNEL_EXPECTED_PREFIX)
+
+check-exception: check-image $(KERNEL_ELF)
+	@zsh scripts/check-exception.zsh $(OS_IMAGE) $(KERNEL_ELF) $(DEBUGCON_EXPECTED)

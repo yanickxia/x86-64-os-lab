@@ -77,9 +77,10 @@ make check-protected     # CR0.PE=1，32/64 位最终状态均保持段基础不
 make check-page-tables   # PML4[0] → PDPT[0] → 2 MiB identity map
 make check-long-mode     # CR4.PAE、CR3、EFER.LME/LMA、CR0.PG 与 CS64
 make check-kernel-load   # 镜像 sector 2 已被 BIOS 读到物理地址 0x10000
-make check-kernel-entry  # 执行权已交给载荷：RIP=0x1000e、CS 仍为 0x18（CS64）
+make check-kernel-entry  # 执行权已交给载荷：RIP 位于 0x10000..0x101ff，CS=0x18（CS64）
 make check-kernel-elf    # ELF entry、.text VMA 与 symbols 均匹配加载地址 0x10000
 make check-c-kernel      # 汇编入口调用 kernel_main，C 通过 debug_putc 追加字符 C
+make check-exception     # #UD 经 IDT vector 6 进入 C handler，IRETQ 后回到 0x1000e
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -91,6 +92,7 @@ make disassemble-boot    # 按 16/32 位执行区域分段反汇编，看机器�
 make disassemble-kernel  # 按 64 位规则反汇编 0x10000 的独立 payload
 make inspect-kernel-elf  # 查看 ELF header、symbols 与 section 地址/文件偏移
 make inspect-kernel-c    # 只看汇编调用点、kernel_main 源码/指令与 debug_putc
+make inspect-exception   # 查看 IDT/#UD symbols、汇编入口和 C handler 反汇编
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
@@ -140,9 +142,9 @@ npm run lint
 
 ### kernel/：独立载荷的 ELF 构建管线
 
-第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`。第 18 课加入 `kernel/main.c`，由 `x86_64-elf-gcc -ffreestanding` 生成 `build/main.o`；`x86_64-elf-ld -T kernel/linker.ld` 把两者链接为 `build/kernel.elf`，再由 `objcopy -O binary` 抽出 512 字节 `build/kernel.bin`。镜像和 BIOS loader 仍只消费 raw `kernel.bin`；ELF 用于 symbols、sections 和 relocations。
+第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`。第 18 课加入 `kernel/main.c`，第 19 课加入 `kernel/interrupts.c`，都由 `x86_64-elf-gcc -ffreestanding` 生成 object；`x86_64-elf-ld -T kernel/linker.ld` 把它们链接为 `build/kernel.elf`，再由 `objcopy -O binary` 抽出 512 字节 `build/kernel.bin`。镜像和 BIOS loader 仍只消费 raw `kernel.bin`；ELF 用于 symbols、sections 和 relocations。
 
-当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。汇编在 `kernel_call_stub` 输出 `K` 并 `CALL kernel_main`；`debug_putc(char)` 按 SysV ABI 从 `EDI` 取第一个参数。linker 暂时把载荷补到一个扇区并拒绝非空 `.bss`。linker script 的 location counter 是地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
+当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。汇编在 `kernel_call_stub` 输出 `K` 并 `CALL kernel_main`；`debug_putc(char)` 按 SysV ABI 从 `EDI` 取第一个参数。第 19 课的教学 IDT 只有 7 项（limit `0x6f`），只安装 vector 6 `#UD`；汇编入口保存 GPR、对齐栈并用 `IRETQ` 返回。linker 暂时把载荷补到一个扇区并拒绝非空 `.bss`。linker script 的 location counter 是地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
@@ -152,7 +154,8 @@ npm run lint
 
 **同步条件与断言条件必须分开**，Makefile 里是两个变量：
 
-- `DEBUGCON_EXPECTED`（当前绿灯为 `HelloPTLKC`）——完整输出，由 `check-debugcon` 与 `check-c-kernel` 精确断言。
+- `DEBUGCON_EXPECTED`（第 19 课绿灯为 `HelloPTLKCUR`）——当前完整输出，由 `check-debugcon` 与 `check-exception` 精确断言。
+- `C_KERNEL_EXPECTED_PREFIX`（当前 `HelloPTLKC`）——`check-c-kernel` 只证明第 18 课的汇编→C 边界，后续 C 输出不能破坏它。
 - `KERNEL_ENTRY_EXPECTED`（当前 `HelloPTLK`）——`check-kernel-entry` 使用的前缀；后续 C 输出不能破坏第 13 课的控制权证据。
 - `BOOT_SYNC_PREFIX`（当前 `HelloPTL`）——a20/gdt/protected/page-tables/long-mode/kernel-load 这六个脚本只用它**前缀匹配**，等到“切换序列已完成”就去查寄存器。
 
@@ -187,7 +190,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–17 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–19 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -222,5 +225,7 @@ npm run lint
 第 17 课已按加速轨道结课：第一遍诊断分为 62/100，判断结论大多正确，薄弱点集中在完整因果链。导师已在 `notes/note-17.md` 的“审阅后修正”中补齐 `CALL/RET`、模式切换、五套地址坐标、诊断证据链、triple fault、ELF 偶然可运行及最小 C 环境。该分数只用于定位，不再阻塞 OS 主线。
 
 第 18 课已结课：汇编入口按 SysV x86-64 ABI 调用 `kernel_main`，C 通过汇编 `debug_putc` 输出字符 `C`，完整输出为 `HelloPTLKC`；调用正常返回后仍停在 `RIP=0x1000e`。反汇编显示 GCC 把函数末尾调用优化成 `mov edi,0x43; jmp debug_putc` 的 tail call。教材同时补齐了 IDT、`.bss` 清零和 stack guard 为什么不阻止极小函数运行、却仍是完整内核环境必需合同。架构胶水、编译选项和单扇区填充不作为记忆题。
+
+第 19 课已结课：`kernel_main` 安装 7-entry 教学 IDT 并执行两字节 `UD2`；vector 6 经汇编入口进入 `invalid_opcode_handler`。C handler 把保存的 `RIP` 从 `0x10028` 推进到 `0x1002a`，汇编恢复 GPR 后用 `IRETQ` 返回；完整输出为 `HelloPTLKCUR`，最终仍停在 `RIP=0x1000e`。当前 IDT 只覆盖 vector `0..6`，且只有 vector 6 有效，尚不能处理 `#PF` 等其他异常。
 
 第 18 课起，"OS 视角""对照实现（xv6/Linux/JOS）""设计题""配套阅读"四个槽位常驻。帧分配器阶段开始让学生真正选择并论证数据结构。

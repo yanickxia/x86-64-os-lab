@@ -30,5 +30,5 @@ SECTIONS
     }
 
     ASSERT(SIZEOF(.text) == 0x200, "kernel payload must remain exactly one sector")
-    ASSERT(SIZEOF(.bss) == 0, "lesson 18 does not establish a .bss clearing contract yet")
+    ASSERT(SIZEOF(.bss) == 0, "lesson 19 does not establish a .bss clearing contract yet")
 }
