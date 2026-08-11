@@ -503,9 +503,15 @@ CS =0018 ... CS64
 4 × 8 - 1 = 31 = 0x1f
 ```
 
+## 红灯机制（先不要运行）
+
+当前 `enable_long_mode` 只输出 `L`，随后原地循环。它没有设置 `CR4.PAE`、`CR3`、`EFER.LME` 或 `CR0.PG`，也没有用 far jump 加载 64 位 code descriptor。因此 `HelloPTL` 只能证明控制流抵达占位代码，不能证明 CPU 已进入 long mode。
+
+这里先理解红灯的缺失状态和检查依据，不运行命令，也不查看真实寄存器输出。
+
 ## 实验前计算
 
-修改代码前，把以下结果写入 `notes/note-11.md`：
+现在已经读完 long-mode 激活顺序、各寄存器位和红灯成因。第一次运行 `make check-long-mode` 前，把以下结果写入 `notes/note-11.md`：
 
 1. `CR4.PAE` 的 bit 编号与掩码。
 2. PML4 的物理地址，以及加载 CR3 后的期望值。
@@ -516,9 +522,9 @@ CS =0018 ... CS64
 7. far jump 的 offset、selector，以及预计的 7 个机器码字节。
 8. 绿灯时 `CR0/CR3/CR4/EFER/CS` 的完整期望值。
 
-## 红灯
+## 运行真实红灯
 
-先不要修改 `enable_long_mode`。运行：
+完成计算后，先不要修改 `enable_long_mode`，运行：
 
 ```sh
 make check-long-mode

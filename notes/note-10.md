@@ -2,6 +2,8 @@
 
 日期：2026.08.09
 
+> 填写时机：先读完讲义正文和红灯机制说明，再在第一次运行 `make check-page-tables` 前完成计算。
+
 ## 实验前计算
 
 1. `0x00007c00` 的 PML4 / PDPT / PD / PT index 与 page offset：PML4=0, PDPT=0, PD=0, PT=0x7, offset=0xc00

@@ -167,6 +167,14 @@ const lessonMeta = [
     summary: "安装最小 IDT，让 UD2 产生的 #UD 进入 C handler，修改异常帧后通过 IRETQ 恢复执行。",
     takeaway: "#UD → IDT → C → IRETQ",
   },
+  {
+    id: "20",
+    slug: "lesson-20",
+    phase: "Bootloader 完成",
+    status: "completed",
+    summary: "继续使用自己的 BIOS loader，把 4-sector 内核完整搬到 RAM，并用尾部标记证明加载长度合同。",
+    takeaway: "4 sectors → 0x10000..0x107ff",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

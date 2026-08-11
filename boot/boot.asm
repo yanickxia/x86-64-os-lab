@@ -14,7 +14,9 @@ CR0_PG equ 1 << 31
 CODE64_SELECTOR equ 3 << 3
 KERNEL_LOAD_SEGMENT equ 0x1000
 KERNEL_LOAD_ADDR equ KERNEL_LOAD_SEGMENT << 4
-KERNEL_SECTORS equ 1
+%ifndef KERNEL_SECTORS
+%define KERNEL_SECTORS 4
+%endif
 
 
 start:
@@ -186,7 +188,8 @@ load_kernel:
     mov bx, 0x0000
 
     mov ah, 0x02
-    mov al, 0x01
+    ; RED / TODO (lesson 20): load the complete KERNEL_SECTORS-sector image.
+    mov al, KERNEL_SECTORS
     mov ch, 0x00
     mov cl, 0x02
     mov dh, 0x00

@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>20<\/strong><span>节已完成/);
+  assert.match(html, /<strong>21<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?20(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?21(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /C 内核运行环境已就绪/);
-  assert.match(html, /BOOT → ELF → C KERNEL/);
+  assert.match(html, /Bootloader 多扇区加载已闭环/);
+  assert.match(html, /BIOS → 4 SECTORS → C KERNEL/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -50,8 +50,9 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-17"/);
   assert.match(html, /href="\/lessons\/lesson-18"/);
   assert.match(html, /href="\/lessons\/lesson-19"/);
+  assert.match(html, /href="\/lessons\/lesson-20"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05/s);
-  assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 OS 主线/s);
+  assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 5);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
   assert.doesNotMatch(html, /NEXT CHECKPOINT|下一步：/);
@@ -76,6 +77,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-17", /100 分.*判断并解释.*因果链与诊断.*A20.*B6/is],
     ["/lessons/lesson-18", /freestanding.*System V x86-64 ABI.*kernel_main.*debug_putc.*HelloPTLKC/is],
     ["/lessons/lesson-19", /UD2.*vector 6.*exception_frame.*IRETQ.*HelloPTLKCUR/is],
+    ["/lessons/lesson-20", /自己的 bootloader.*4 个扇区.*LOAD4SEC.*0x107f8.*第 25 课/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

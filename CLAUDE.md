@@ -48,7 +48,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 每课在练习前列出先修知识，并讲清本课新增的最小语法与机器模型。
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
 - 写代码前先预测机器状态和输出。
-- “实验前预测/推演”必须出现在运行和正文公布精确结果之前，并在页面内给齐当前源码、地址、工具规则与前置状态；每一题都必须能从显式输入推出“输入 → 结论”，不能要求学生猜未展示的代码或工具隐藏行为。若无法推出，应补输入或移到实验后观察题，而不是标成猜测题。学生已经写下的错误答案必须原样保留，随后另做复盘。
+- “实验前预测/推演”必须放在先修知识、机制正文和红灯成因说明之后，紧邻第一次实际运行之前；不能为了形式上“预测在前”而让学生在正文讲解前作答。预测之前的红灯小节只能展示输入、错误代码与判定规则，不运行实验，也不公布真实机器的精确结果。每一题都必须能从页面给出的源码、地址、工具规则与前置状态推出“输入 → 结论”，不能要求学生猜未展示的代码或工具隐藏行为。若无法推出，应补输入或移到实验后观察题。学生已经写下的错误答案必须原样保留，随后另做复盘。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
 - 每个里程碑结束时留一个干净提交。
 
@@ -81,6 +81,7 @@ make check-kernel-entry  # 执行权已交给载荷：RIP 位于 0x10000..0x101f
 make check-kernel-elf    # ELF entry、.text VMA 与 symbols 均匹配加载地址 0x10000
 make check-c-kernel      # 汇编入口调用 kernel_main，C 通过 debug_putc 追加字符 C
 make check-exception     # #UD 经 IDT vector 6 进入 C handler，IRETQ 后回到 0x1000e
+make check-multisector-load # 自制 loader 把 4-sector kernel 的尾部标记读到 0x107f8
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -93,6 +94,7 @@ make disassemble-kernel  # 按 64 位规则反汇编 0x10000 的独立 payload
 make inspect-kernel-elf  # 查看 ELF header、symbols 与 section 地址/文件偏移
 make inspect-kernel-c    # 只看汇编调用点、kernel_main 源码/指令与 debug_putc
 make inspect-exception   # 查看 IDT/#UD symbols、汇编入口和 C handler 反汇编
+make inspect-kernel-span # 查看 2048-byte kernel.bin 及镜像中的尾部 LOAD4SEC
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
@@ -142,9 +144,22 @@ npm run lint
 
 ### kernel/：独立载荷的 ELF 构建管线
 
-第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`。第 18 课加入 `kernel/main.c`，第 19 课加入 `kernel/interrupts.c`，都由 `x86_64-elf-gcc -ffreestanding` 生成 object；`x86_64-elf-ld -T kernel/linker.ld` 把它们链接为 `build/kernel.elf`，再由 `objcopy -O binary` 抽出 512 字节 `build/kernel.bin`。镜像和 BIOS loader 仍只消费 raw `kernel.bin`；ELF 用于 symbols、sections 和 relocations。
+第 14 课起，`kernel/payload.asm` 使用 `nasm -f elf64` 生成 `build/kernel.o`。第 18 课加入 `kernel/main.c`，第 19 课加入 `kernel/interrupts.c`，都由 `x86_64-elf-gcc -ffreestanding` 生成 object；`x86_64-elf-ld -T kernel/linker.ld` 把它们链接为 `build/kernel.elf`，再由 `objcopy -O binary` 抽出 raw `build/kernel.bin`。第 20 课把 raw payload 扩大到 4 sectors / 2048 bytes，并在 offset `0x7f8` 放置 `LOAD4SEC` 尾部标记。镜像和 BIOS loader 仍只消费 raw bytes；ELF 用于 symbols、sections 和 relocations。
 
-当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。汇编在 `kernel_call_stub` 输出 `K` 并 `CALL kernel_main`；`debug_putc(char)` 按 SysV ABI 从 `EDI` 取第一个参数。第 19 课的教学 IDT 只有 7 项（limit `0x6f`），只安装 vector 6 `#UD`；汇编入口保存 GPR、对齐栈并用 `IRETQ` 返回。linker 暂时把载荷补到一个扇区并拒绝非空 `.bss`。linker script 的 location counter 是地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
+当前固定契约：`.text`/`kernel_start=0x10000`、`kernel_magic=0x10002`、`kernel_entry=0x1000a`、`kernel_hang=0x1000e`。汇编在 `kernel_call_stub` 输出 `K` 并 `CALL kernel_main`；`debug_putc(char)` 按 SysV ABI 从 `EDI` 取第一个参数。第 19 课的教学 IDT 只有 7 项（limit `0x6f`），只安装 vector 6 `#UD`；汇编入口保存 GPR、对齐栈并用 `IRETQ` 返回。linker 暂时拒绝非空 `.bss`，直到 bootloader 毕业阶段建立清零合同。linker script 的 location counter 是地址的唯一来源；不要在 ELF 源文件中重新加入 `ORG`。
+
+### 第 20–25 课：自制 bootloader 的毕业边界
+
+第 20 课不切换 Limine。当前 boot sector 仍有约 133 bytes 填充空间，技术上可以继续；课程先把与后续内核直接相关的启动合同闭环：
+
+- 第 20 课：多扇区载荷，证明磁盘长度和 guest RAM 中实际长度一致。
+- 第 21 课：stage 1 / stage 2，解除 512-byte 代码空间和简单 CHS 的长期限制。
+- 第 22 课：BIOS E820 + `boot_info`，把真实物理内存布局传给 C。
+- 第 23 课：ELF `PT_LOAD`、`.bss`、内核栈和 ABI handoff。
+- 第 24 课：bootloader 毕业复盘，逐项取证并明确有意不实现的生产功能。
+- 第 25 课：把自制 handoff 与 Limine protocol 逐字段对照后再切换。
+
+“毕业”不等于实现 UEFI、Secure Boot、文件系统、网络启动和全部硬件兼容；它表示与本课程内核直接相关的加载、资源发现、执行环境和 handoff 不再是黑盒。Limine 之后只是成熟实现的替换，不用于掩盖未讲过的启动合同。
 
 ### scripts/check-*.zsh：验收脚本的统一形状
 
@@ -163,7 +178,7 @@ npm run lint
 
 ### docs/ 与 notes/ 成对，结构固定
 
-`docs/lesson-NN.md`：`# 第 N 课：…` → `## 先修知识` → `## 本课只引入一个机制` → 编号小节（含“为什么有这个东西”的历史演化）→ `## 练习` → `## 观察题` → `## 完成标准`。
+`docs/lesson-NN.md`：`# 第 N 课：…` → `## 先修知识` → `## 本课只引入一个机制` → 机制正文（含“为什么有这个东西”的历史演化）→ 红灯成因说明（明确先不运行）→ `## 实验前预测` → 实际运行红灯与练习 → 绿灯取证 → `## 观察题` → `## 完成标准`。
 
 引入新机制的实验课使用：`## 实验前预测`（或`实验前计算`）→ `## 红灯` → `## 我的实现` → `## 绿灯原始观察` → `## 我的解释` → `## 仍然不清楚的问题`。观察题与“我的解释”按编号一一对应。纯总结章可以改用主题式复盘，不设置红灯/绿灯，也不新增验收命令；第 15、16 课都是这个例外，因此两课都没有 `## 先修知识` 与红/绿灯小节。
 - 当前日期默认填充今日
@@ -190,7 +205,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–19 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–20 课已结课。CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行。硬件首次遍历页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -228,4 +243,6 @@ npm run lint
 
 第 19 课已结课：`kernel_main` 安装 7-entry 教学 IDT 并执行两字节 `UD2`；vector 6 经汇编入口进入 `invalid_opcode_handler`。C handler 把保存的 `RIP` 从 `0x10028` 推进到 `0x1002a`，汇编恢复 GPR 后用 `IRETQ` 返回；完整输出为 `HelloPTLKCUR`，最终仍停在 `RIP=0x1000e`。当前 IDT 只覆盖 vector `0..6`，且只有 vector 6 有效，尚不能处理 `#PF` 等其他异常。
 
-第 18 课起，"OS 视角""对照实现（xv6/Linux/JOS）""设计题""配套阅读"四个槽位常驻。帧分配器阶段开始让学生真正选择并论证数据结构。
+第 20 课已结课：构建产物扩为 4 sectors / 2048 bytes，尾部 `LOAD4SEC` 位于 kernel offset `0x7f8`、镜像 offset `0x9f8`、guest physical `0x107f8`。BIOS `INT 13h AH=02h` 的 `AL` 使用 `KERNEL_SECTORS`，一次连续读取覆盖 CHS sector 2..5；完整输出仍为 `HelloPTLKCUR`，且 `check-multisector-load` 已证明最后一个 sector 确实进入 RAM。
+
+第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。

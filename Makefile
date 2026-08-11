@@ -35,6 +35,8 @@ KERNEL_C_OBJS := build/main.o build/interrupts.o
 KERNEL_OBJS := $(KERNEL_OBJ) $(KERNEL_C_OBJS)
 KERNEL_ELF := build/kernel.elf
 KERNEL_BIN := build/kernel.bin
+KERNEL_SECTORS := 4
+KERNEL_IMAGE_BYTES := 2048
 OS_IMAGE := build/os.img
 FLOPPY_SECTORS := 2880
 
@@ -84,7 +86,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-kernel-entry check-kernel-elf check-c-kernel check-exception
+.PHONY: check-tools qemu-reset inspect-reset boot kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-kernel-entry check-kernel-elf check-c-kernel check-exception
 
 check-tools:
 	@set -e; \
@@ -109,7 +111,7 @@ inspect-reset:
 
 $(BOOT_BIN): $(BOOT_SRC)
 	@mkdir -p build
-	@nasm -f bin -o $@ $<
+	@nasm -D KERNEL_SECTORS=$(KERNEL_SECTORS) -f bin -o $@ $<
 
 $(KERNEL_OBJ): $(KERNEL_SRC)
 	@mkdir -p build
@@ -120,7 +122,7 @@ $(KERNEL_C_OBJS): build/%.o: kernel/%.c $(KERNEL_HEADERS)
 	@x86_64-elf-gcc $(KERNEL_CFLAGS) -c -o $@ $<
 
 $(KERNEL_ELF): $(KERNEL_OBJS) $(KERNEL_LINKER)
-	@x86_64-elf-ld -nostdlib -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJS)
+	@x86_64-elf-ld -nostdlib --defsym KERNEL_IMAGE_BYTES=$(KERNEL_IMAGE_BYTES) -T $(KERNEL_LINKER) -o $@ $(KERNEL_OBJS)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	@x86_64-elf-objcopy -O binary $< $@
@@ -129,7 +131,6 @@ $(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
 	@dd if=/dev/zero of=$@ bs=512 count=$(FLOPPY_SECTORS) status=none
 	@dd if=$(BOOT_BIN) of=$@ conv=notrunc status=none
 	@dd if=$(KERNEL_BIN) of=$@ bs=512 seek=1 conv=notrunc status=none
-
 boot: $(BOOT_BIN)
 
 kernel-elf: $(KERNEL_ELF)
@@ -219,6 +220,13 @@ inspect-image: image
 	@printf '%s\n' '== boot signature and start of sector 2 =='
 	@xxd -g 1 -s 0x1f0 -l 48 $(OS_IMAGE)
 
+inspect-kernel-span: image
+	@printf '%s\n' '== kernel image size and last 16 bytes =='
+	@wc -c $(KERNEL_BIN)
+	@xxd -g 1 -s 0x7f0 -l 16 $(KERNEL_BIN)
+	@printf '%s\n' '== same tail bytes inside os.img =='
+	@xxd -g 1 -s 0x9f0 -l 16 $(OS_IMAGE)
+
 inspect-message: boot
 	@xxd -g 1 -s 0x40 -l 7 $(BOOT_BIN)
 
@@ -258,11 +266,14 @@ check-long-mode: check-image
 check-kernel-load: check-image $(KERNEL_BIN)
 	@zsh scripts/check-kernel-load.zsh $(OS_IMAGE) $(KERNEL_BIN) $(BOOT_SYNC_PREFIX)
 
+check-multisector-load: check-image $(KERNEL_BIN)
+	@zsh scripts/check-multisector-load.zsh $(OS_IMAGE) $(KERNEL_BIN) $(KERNEL_SECTORS) $(DEBUGCON_EXPECTED)
+
 check-kernel-entry: check-image
 	@zsh scripts/check-kernel-entry.zsh $(OS_IMAGE) $(KERNEL_ENTRY_EXPECTED)
 
 check-kernel-elf: $(KERNEL_ELF) $(KERNEL_BIN)
-	@zsh scripts/check-kernel-elf.zsh $(KERNEL_ELF) $(KERNEL_BIN)
+	@zsh scripts/check-kernel-elf.zsh $(KERNEL_ELF) $(KERNEL_BIN) $(KERNEL_IMAGE_BYTES)
 
 check-c-kernel: check-image $(KERNEL_ELF)
 	@zsh scripts/check-c-kernel.zsh $(OS_IMAGE) $(KERNEL_ELF) $(C_KERNEL_EXPECTED_PREFIX)

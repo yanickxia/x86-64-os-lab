@@ -71,17 +71,21 @@ out immediate_port, al
 - [Intel SDM Volume 1](https://cdrdv2.intel.com/v1/dl/getContent/671436)，Chapter 3 的通用寄存器
 - [Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110)，`OUT` 指令
 
-## 先预测
+## 红灯机制（先不要运行）
 
-在修改代码前，把以下预测写入 `notes/note-03.md`：
+当前启动扇区只会原地循环，没有把字符装入 `AL`，也没有执行 `OUT`，所以 debug console 不可能收到字节。这里先理解缺少的两步与检查条件，不运行命令。
+
+## 实验前预测
+
+现在已经读完端口 I/O、寄存器和红灯成因。在第一次运行 `make check-debugcon` 前，把以下预测写入 `notes/note-03.md`：
 
 1. ASCII 字符 `X` 的数值是多少？
 2. `out 0xe9, al` 的数据方向是端口到 CPU，还是 CPU 到端口？
 3. 你预计“把字符放进 `AL`”和“写端口”各需要多少字节机器码？
 
-## 红灯
+## 运行真实红灯
 
-当前启动扇区只会原地循环，不会写端口。运行：
+完成预测后运行：
 
 ```sh
 make check-debugcon

@@ -4,6 +4,8 @@ set -eu
 
 kernel_elf="$1"
 kernel_bin="$2"
+expected_size="${3:-2048}"
+expected_section_size="$(printf '%08x' "$expected_size")"
 expected_base="0000000000010000"
 expected_entry="000000000001000a"
 expected_hang="000000000001000e"
@@ -42,13 +44,13 @@ for expected_symbol in \
     fi
 done
 
-if [[ "$sections" != *".text"*"00000200"*"0000000000010000"* ]]; then
-    print -u2 "kernel ELF check: expected .text VMA=0x10000 and size=0x200"
+if [[ "$sections" != *".text"*"${expected_section_size}"*"0000000000010000"* ]]; then
+    print -u2 "kernel ELF check: expected .text VMA=0x10000 and size=0x${expected_section_size}"
     failed=1
 fi
 
-if [[ "$actual_size" != "512" ]]; then
-    print -u2 "kernel ELF check: expected raw kernel.bin size 512, got ${actual_size}"
+if [[ "$actual_size" != "$expected_size" ]]; then
+    print -u2 "kernel ELF check: expected raw kernel.bin size ${expected_size}, got ${actual_size}"
     failed=1
 fi
 
@@ -66,5 +68,5 @@ if (( failed )); then
     exit 1
 fi
 
-print "kernel ELF check passed: assembly and C objects linked at 0x10000, raw payload=512 bytes"
+print "kernel ELF check passed: assembly and C objects linked at 0x10000, raw payload=${actual_size} bytes"
 print -- "$symbols"

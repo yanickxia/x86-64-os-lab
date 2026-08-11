@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>C 内核运行环境已就绪</h2>
-            <p>启动、分页、磁盘载荷、控制权转移与 ELF 链接地址已经闭环验证；下一阶段从架构桥接转向 C 中的操作系统机制。</p>
+            <h2>Bootloader 多扇区加载已闭环</h2>
+            <p>启动扇区、模式切换、C 与异常入口仍完整工作，4-sector 内核的磁盘范围和 guest RAM 尾部也已有独立证据。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>BOOT → ELF → C KERNEL</code>
+            <code>BIOS → 4 SECTORS → C KERNEL</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

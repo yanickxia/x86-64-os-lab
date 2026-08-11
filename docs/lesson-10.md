@@ -505,9 +505,15 @@ physical 0x3000  PD[0]
 
 这里刻意使用物理内存观察，因为 paging 尚未开启，CPU 还没有通过这些 entry 进行地址翻译。
 
+## 红灯机制（先不要运行）
+
+当前 `setup_page_tables` 会把三张表清零，但预留的 30 字节仍全是 NOP。因此函数虽然返回并输出 `HelloPT`，PML4[0]、PDPT[0] 和 PD[0] 仍然都是零；检查器会因缺少三条页表连接而失败。
+
+这里先理解红灯的代码和判定条件，不运行命令，也不查看真实输出。
+
 ## 实验前计算
 
-修改代码前，把以下结果写入 `notes/note-10.md`：
+现在已经学完页表层级、entry 格式、地址拆分和红灯成因。第一次运行 `make check-page-tables` 前，把以下结果写入 `notes/note-10.md`：
 
 1. `0x00007c00` 在四级 4 KiB 地址拆分中的 PML4、PDPT、PD、PT index 和 page offset。
 2. `0x00090000` 的四个 index 和 page offset。
@@ -517,9 +523,9 @@ physical 0x3000  PD[0]
 6. PML4[0]、PDPT[0]、PD[0] 各自应该保存什么 64 位数值；注意这不是该 entry 自身的物理地址。
 7. `0x1000`、`0x2000`、`0x3000` 为什么都是 4 KiB 对齐。
 
-## 红灯
+## 运行真实红灯
 
-当前 `setup_page_tables` 会把三张表清零，但预留的 30 字节仍全是 NOP。运行：
+完成计算后运行：
 
 ```sh
 make check-page-tables

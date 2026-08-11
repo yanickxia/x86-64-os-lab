@@ -37,8 +37,8 @@ const courseSectionMeta = [
     id: "05",
     from: 18,
     to: Number.POSITIVE_INFINITY,
-    title: "C 内核与 OS 主线",
-    description: "从第一个 freestanding C 函数开始，进入异常、内存、用户态、进程、并发与文件系统。",
+    title: "C 内核与 Bootloader 毕业",
+    description: "建立 C 与异常入口后，补齐多扇区、boot info、ELF 与运行环境合同，再进入 OS 主线。",
   },
 ] as const;
 

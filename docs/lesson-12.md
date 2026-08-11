@@ -266,26 +266,11 @@ QEMU monitor 的 `xp /2gx 0x10000` 按两个 64 位 little-endian 数显示同�
 
 第一个数的最低有效字节是 `EB`，所以它位于最低地址 `0x10000`；随后依次是 `08 4B 45...`。测试比较完整的两个 qword，而不只是检查“这块 RAM 不为零”，从而能发现读错扇区、读错地址或内容损坏。
 
-## 10. 红灯
+## 10. 红灯机制（先不要运行）
 
-先运行：
+当前 `load_kernel` 直接返回，没有设置 BIOS 读盘寄存器，也没有执行 `INT 13h`。因此第 2 个扇区虽然已经存在于磁盘镜像，guest 物理地址 `0x10000` 仍不会得到这批字节。
 
-```sh
-make inspect-image
-make disassemble-kernel
-make check-kernel-load
-```
-
-前两条会证明第 2 个扇区确实存在于镜像。红灯实现中的 `load_kernel` 直接返回，没有调用 BIOS，因此第三条应失败：
-
-```text
-kernel-load check: expected sector-2 payload at physical 0x10000
-kernel-load check: expected qwords 0x4c454e52454b08eb and 0xfeebe9e64bb03436
-...
-00010000: 0x0000000000000000 0x0000000000000000
-```
-
-`HelloPTL` 仍会正常出现。这只能证明旧控制流仍从实模式走到 `CS64`，不能证明额外扇区被读进 RAM。
+`HelloPTL` 仍可能正常出现，因为旧控制流可以继续进入 `CS64`；这只能证明启动链走完，不能证明额外扇区已从磁盘搬到 RAM。这里先理解红灯的因果，不运行命令，也不查看物理内存结果。
 
 ## 实验前预测
 
@@ -299,6 +284,18 @@ kernel-load check: expected qwords 0x4c454e52454b08eb and 0xfeebe9e64bb03436
 6. 第 2 个扇区前 16 个字节是什么？按 little-endian 显示成两个 qword 后是什么？
 7. 为什么读盘发生在设置 `CR0.PE` 之前，而不是进入 long mode 后？
 8. 为什么仍然看到 `HelloPTL` 不能证明第 2 个扇区已经被读入？
+
+## 运行真实红灯
+
+完成预测后运行：
+
+```sh
+make inspect-image
+make disassemble-kernel
+make check-kernel-load
+```
+
+前两条会证明第 2 个扇区确实存在于镜像。第三条应报告：期望在物理地址 `0x10000` 看到载荷，但当前仍是零。把实际错误输出原样记录到笔记中。
 
 ## 练习
 

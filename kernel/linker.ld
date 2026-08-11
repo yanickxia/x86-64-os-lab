@@ -11,9 +11,9 @@ SECTIONS
         *(.rodata .rodata.*)
         *(.data .data.*)
 
-        /* Keep the lesson payload inside the single sector loaded by BIOS. */
-        . = 0x1ff;
-        BYTE(0)
+        /* A tail marker proves that BIOS loaded beyond the first sector. */
+        . = KERNEL_IMAGE_BYTES - 8;
+        QUAD(0x4345533444414f4c) /* little-endian bytes: "LOAD4SEC" */
     }
 
     .bss (NOLOAD) :
@@ -29,6 +29,6 @@ SECTIONS
         *(.eh_frame*)
     }
 
-    ASSERT(SIZEOF(.text) == 0x200, "kernel payload must remain exactly one sector")
-    ASSERT(SIZEOF(.bss) == 0, "lesson 19 does not establish a .bss clearing contract yet")
+    ASSERT(SIZEOF(.text) == KERNEL_IMAGE_BYTES, "kernel payload size must match the loader contract")
+    ASSERT(SIZEOF(.bss) == 0, "bootloader graduation has not established a .bss clearing contract yet")
 }

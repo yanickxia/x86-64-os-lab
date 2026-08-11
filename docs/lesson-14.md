@@ -47,9 +47,9 @@ kernel.bin               BIOS loader 仍然读取的 512 字节 raw payload
 
 本课不加入 C、不改变载荷行为、不增加扇区，也不让 bootloader 解析 ELF。唯一的练习是修正 linker script 中的链接地址。
 
-## 实验前推演（尚未运行）：先停在这里
+## 实验输入：稍后推演会用到
 
-**第一次阅读时先不要继续向下看，也不要运行命令。** 这不是让你猜工具的隐藏行为：以下输入应足以推出每一题。如果某题仍无法由输入推出，应指出缺少哪条规则，而不是硬猜。
+下面先给出构建管线、section、symbol 和文件布局输入。此处只阅读，**暂时不要作答，也不要运行命令**；读完 linker 正文与红灯成因后再进行推演。
 
 ### 输入 A：新的构建管线
 
@@ -129,7 +129,7 @@ SECTIONS
 - `os.img` 把 `kernel.bin` 放在 LBA 1，即 file offset `0x200`。
 - BIOS 把它读到 guest physical `0x10000`；低 2 MiB 恒等映射使 linear address 也为 `0x10000`。
 
-在 [学习记录](../notes/note-14.md) 中写出“输入 → 结论”的推导；已经填写的原始答案即使错误也不要删除。
+### 稍后要回答的问题（此处先不作答）
 
 1. 由输入 B/C 的 `base + offset`，推出尚未修改时 `kernel_start/kernel_magic/kernel_entry/kernel_hang` 的最终值。
 2. 由 `ENTRY` 规则和第 1 题的 `kernel_start`，推出 ELF entry point；说明 `ENTRY` 是否会自动把 symbol 搬到 `0x10000`。
@@ -288,7 +288,17 @@ relative displacement 只取决于两个位置之间的距离。整段代码从�
 运行结果正确 ≠ 所有构建不变量都正确
 ```
 
-## 6. 红灯
+## 红灯机制（先不要运行）
+
+当前 linker script 把 `.text` 的 VMA 设为 0，所以 ELF entry 与 symbols 也从 0 开始；但 BIOS loader 完全绕过 ELF metadata，仍把 raw `kernel.bin` 放到 `0x10000` 并跳过去。于是运行行为可以正常，而 ELF 地址契约仍然错误。
+
+这里先理解“行为绿、构建不变量红”的因果，不运行命令，也不查看实际 ELF header。
+
+## 实验前推演
+
+现在已经读完 linker、VMA/LMA、objcopy 文件布局和红灯成因。回到前面的“稍后要回答的问题”，在第一次运行 `make check-kernel-elf` 前把“输入 → 结论”写入 `notes/note-14.md`；错误推演原样保留。
+
+## 6. 运行真实红灯
 
 在修改 linker script 前运行：
 
