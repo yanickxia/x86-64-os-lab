@@ -41,7 +41,8 @@ jobs:
       - name: Export static GitHub Pages files
         working-directory: site
         env:
-          PAGES_BASE_PATH: /${{ github.event.repository.name }}
+          # A custom domain serves this project site from its URL root.
+          PAGES_BASE_PATH: ""
         run: npm run export:pages
 
       - name: Configure GitHub Pages

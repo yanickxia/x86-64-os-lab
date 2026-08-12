@@ -32,7 +32,7 @@ make check-tools
 
 当前已完成 [第 26 课：从内存地图到物理页所有权](docs/lesson-26.md)；下一阶段将用已经分配的 frame 建立 kernel-owned page tables。
 
-多页面课程站由 GitHub Actions 自动部署到 [GitHub Pages](https://yanickxia.github.io/x86-64-os-lab/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
+多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 
 常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)。
 
