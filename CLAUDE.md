@@ -225,7 +225,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–25 课已结课；第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入 `0xffffffff80001000` 的高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–26 课已结课；第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -274,5 +274,7 @@ npm run lint
 第 24 课已结课且未修改 `boot/` 或 `kernel/`：`make check-bootloader-graduation` 聚合 stage2/E820/ELF/long-mode/#UD 证据，学习记录完成了四段职责与边界总结。学习者已能区分“由 Limine 等成熟 bootloader 替换的平台限制”和“仍必须由 kernel 实现的 allocator、正式页表、完整 IDT、中断/调度等 OS 能力”。
 
 第 25 课已结课：学习者已区分 Limine bootloader、Limine boot protocol 与 `limine.h`，并把 stage 1/stage 2/E820/`boot_info`/ELF/long-mode/stack 逐项映射到 Limine handoff。新路径独立生成 UEFI FAT image，高半 ELF entry 为 `0xffffffff80001000`；依赖固定为 bootloader 12.5.2 和 protocol commit `4e1587972c14`。`accept_limine_handoff()` 已完成 base revision、response、count、entry pointer 与 usable range 校验，`UEFI → Limine → higher-half entry → memory-map response` 绿灯；旧自制 bootloader 路径继续通过全部回归。学习记录已补齐 request/response、kernel mapping/HHDM/PA、协议指针、Limine 职责边界，以及 memory map 与 allocator 的所有权差异。
+
+第 26 课已结课：`kernel/pmm.c/.h` 建立 monotonic physical-page allocator，`pmm_init()` 只统计 `LIMINE_MEMMAP_USABLE`，`pmm_alloc_page()` 通过跨调用 cursor 跨 range 发出 frame；不提前回收仍存有 response/stack/page tables 的 `BOOTLOADER_RECLAIMABLE`。`make check-physical-pages` 证明两次分配得到不同、4 KiB 对齐且位于 usable range 的 PA，`free_pages` 减 2、`allocated_pages` 变为 2。PA 0 在 base revision 6 下可能合法，因此 API 使用 `bool + output parameter`，不能用返回 0 表示失败。学习者已能区分 memory-map 启动快照、PMM ownership state 与后续 VMM mapping，并说明 HHDM、清零 frame、建立页表层级和切换 CR3 的后续链路。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。

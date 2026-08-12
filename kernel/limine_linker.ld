@@ -22,6 +22,7 @@ SECTIONS
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .text : {
+        KEEP(*(.text.limine_kernel_main))
         *(.text .text.*)
     } :text
 

@@ -215,6 +215,14 @@ const lessonMeta = [
     summary: "先认识 Limine bootloader 与 boot protocol，再逐项映射自制 loader 的职责，最后让高半 C 内核消费 memory-map response。",
     takeaway: "REQUEST → RESPONSE → KERNEL",
   },
+  {
+    id: "26",
+    slug: "lesson-26",
+    phase: "物理内存管理",
+    status: "completed",
+    summary: "把 Limine 的只读 memory map 转成 kernel 自己的物理页 ownership 状态，用最小 allocator 发出两个不同的 4 KiB frame。",
+    takeaway: "USABLE → FREE → KERNEL-OWNED",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

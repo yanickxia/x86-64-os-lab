@@ -90,8 +90,12 @@ LIMINE_DEPS_STAMP := build/limine/.deps-$(LIMINE_VERSION)-$(LIMINE_PROTOCOL_COMM
 LIMINE_HEADER := build/limine/include/limine.h
 LIMINE_BOOT_EFI := build/limine/limine-binary/BOOTX64.EFI
 LIMINE_KERNEL_SRC := kernel/limine_main.c
+LIMINE_PMM_SRC := kernel/pmm.c
+LIMINE_KERNEL_HEADERS := kernel/pmm.h
 LIMINE_KERNEL_LINKER := kernel/limine_linker.ld
 LIMINE_KERNEL_OBJ := build/limine-main.o
+LIMINE_PMM_OBJ := build/limine-pmm.o
+LIMINE_KERNEL_OBJS := $(LIMINE_KERNEL_OBJ) $(LIMINE_PMM_OBJ)
 LIMINE_KERNEL_ELF := build/limine-kernel.elf
 LIMINE_IMAGE := build/limine-os.img
 LIMINE_CONFIG := limine.conf
@@ -133,7 +137,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools check-limine-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation limine-deps limine-kernel limine-image run-limine inspect-limine-api inspect-limine-handoff check-limine-handoff
+.PHONY: check-tools check-limine-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation limine-deps limine-kernel limine-image run-limine inspect-limine-api inspect-limine-handoff inspect-physical-pages check-limine-handoff check-physical-pages
 
 check-tools:
 	@set -e; \
@@ -405,12 +409,16 @@ $(LIMINE_DEPS_STAMP): scripts/fetch-limine.zsh | check-limine-tools
 $(LIMINE_HEADER) $(LIMINE_BOOT_EFI): $(LIMINE_DEPS_STAMP)
 	@test -f $@
 
-$(LIMINE_KERNEL_OBJ): $(LIMINE_KERNEL_SRC) $(LIMINE_HEADER)
+$(LIMINE_KERNEL_OBJ): $(LIMINE_KERNEL_SRC) $(LIMINE_KERNEL_HEADERS) $(LIMINE_HEADER)
 	@mkdir -p build
 	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
 
-$(LIMINE_KERNEL_ELF): $(LIMINE_KERNEL_OBJ) $(LIMINE_KERNEL_LINKER)
-	@x86_64-elf-ld -nostdlib -static -z max-page-size=0x1000 --gc-sections -T $(LIMINE_KERNEL_LINKER) -o $@ $(LIMINE_KERNEL_OBJ)
+$(LIMINE_PMM_OBJ): $(LIMINE_PMM_SRC) $(LIMINE_KERNEL_HEADERS) $(LIMINE_HEADER)
+	@mkdir -p build
+	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
+
+$(LIMINE_KERNEL_ELF): $(LIMINE_KERNEL_OBJS) $(LIMINE_KERNEL_LINKER)
+	@x86_64-elf-ld -nostdlib -static -z max-page-size=0x1000 --gc-sections -T $(LIMINE_KERNEL_LINKER) -o $@ $(LIMINE_KERNEL_OBJS)
 
 $(LIMINE_IMAGE): $(LIMINE_BOOT_EFI) $(LIMINE_KERNEL_ELF) $(LIMINE_CONFIG)
 	@dd if=/dev/zero of=$@ bs=1048576 count=64 status=none
@@ -458,6 +466,18 @@ inspect-limine-handoff: $(LIMINE_KERNEL_ELF)
 	@x86_64-elf-readelf -SW $(LIMINE_KERNEL_ELF) | rg 'limine_requests|text|rodata|data|bss'
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'limine_(requests|base_revision|kernel_main)|memory_map_request'
 
+inspect-physical-pages: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== physical-page allocator state and API =='
+	@sed -n '1,220p' kernel/pmm.h
+	@printf '%s\n' '== lesson implementation slots =='
+	@sed -n '1,260p' kernel/pmm.c
+	@printf '%s\n' '== linked PMM symbols =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'pmm_(init|alloc_page)'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
+
+check-physical-pages: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-physical-pages.zsh $(LIMINE_IMAGE) $(OVMF_CODE)

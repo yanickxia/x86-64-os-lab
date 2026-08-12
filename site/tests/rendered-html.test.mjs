@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>26<\/strong><span>节已完成/);
+  assert.match(html, /<strong>27<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?26(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?27(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /Limine 高半内核基线已建立/);
-  assert.match(html, /REQUEST → RESPONSE → OWNERSHIP/);
+  assert.match(html, /内核已经开始管理物理内存/);
+  assert.match(html, /USABLE → FREE → KERNEL-OWNED/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -56,6 +56,7 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-23"/);
   assert.match(html, /href="\/lessons\/lesson-24"/);
   assert.match(html, /href="\/lessons\/lesson-25"/);
+  assert.match(html, /href="\/lessons\/lesson-26"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
@@ -88,6 +89,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-23", /PT_LOAD.*p_filesz.*p_memsz.*\.bss.*ELF64OK.*kernel_stack/is],
     ["/lessons/lesson-24", /毕业审计.*stage 1.*stage 2.*boot_info.*PT_LOAD.*Limine/is],
     ["/lessons/lesson-25", /Limine bootloader.*boot protocol.*request.*response.*RDI.*memory map.*allocator.*cannot open source file.*make limine-deps.*inspect-limine-api.*提示 1/is],
+    ["/lessons/lesson-26", /physical frame.*PMM.*VMM.*BOOTLOADER_RECLAIMABLE.*ownership.*PA 0.*pmm_init.*pmm_alloc_page/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];

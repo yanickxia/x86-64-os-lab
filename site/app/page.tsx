@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>Limine 高半内核基线已建立</h2>
-            <p>自制 bootloader 的合同已逐项迁移到 Limine request/response；高半 C entry 能校验 memory map，下一阶段从物理页所有权进入 OS 主线。</p>
+            <h2>内核已经开始管理物理内存</h2>
+            <p>Limine 的只读 memory map 已转化为 kernel-owned ownership 状态；最小 PMM 能跨 range 发出不同的 4 KiB frame，并维护分配前后的计数不变量。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>REQUEST → RESPONSE → OWNERSHIP</code>
+            <code>USABLE → FREE → KERNEL-OWNED</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>
