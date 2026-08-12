@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>自制 Bootloader 已毕业</h2>
-            <p>stage 1、stage 2、boot_info、ELF 与 C handoff 的职责和证据已经闭环；下一阶段将用成熟 loader 替换平台限制，进入内核主线。</p>
+            <h2>Limine 高半内核基线已建立</h2>
+            <p>自制 bootloader 的合同已逐项迁移到 Limine request/response；高半 C entry 能校验 memory map，下一阶段从物理页所有权进入 OS 主线。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>IMPLEMENTED → AUDITED → HANDOFF</code>
+            <code>REQUEST → RESPONSE → OWNERSHIP</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

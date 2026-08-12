@@ -207,6 +207,14 @@ const lessonMeta = [
     summary: "不再增加启动机制：审计 stage 1、stage 2、boot_info、ELF、栈与 C handoff，明确成熟 loader 和后续 kernel 各自接手什么。",
     takeaway: "IMPLEMENTED ↔ DEFERRED ↔ KERNEL-OWNED",
   },
+  {
+    id: "25",
+    slug: "lesson-25",
+    phase: "Limine 换轨",
+    status: "completed",
+    summary: "先认识 Limine bootloader 与 boot protocol，再逐项映射自制 loader 的职责，最后让高半 C 内核消费 memory-map response。",
+    takeaway: "REQUEST → RESPONSE → KERNEL",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

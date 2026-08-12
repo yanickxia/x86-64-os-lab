@@ -36,9 +36,16 @@ const courseSectionMeta = [
   {
     id: "05",
     from: 18,
-    to: Number.POSITIVE_INFINITY,
+    to: 24,
     title: "C 内核与 Bootloader 毕业",
     description: "建立 C 与异常入口后，补齐多扇区、boot info、ELF 与运行环境合同，再进入 OS 主线。",
+  },
+  {
+    id: "06",
+    from: 25,
+    to: Number.POSITIVE_INFINITY,
+    title: "Limine 与内核主线",
+    description: "把已理解的启动合同迁移到成熟 loader，从物理内存管理开始实现真正的内核资源与隔离机制。",
   },
 ] as const;
 

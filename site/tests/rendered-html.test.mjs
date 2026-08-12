@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>25<\/strong><span>节已完成/);
+  assert.match(html, /<strong>26<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?25(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?26(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /自制 Bootloader 已毕业/);
-  assert.match(html, /IMPLEMENTED → AUDITED → HANDOFF/);
+  assert.match(html, /Limine 高半内核基线已建立/);
+  assert.match(html, /REQUEST → RESPONSE → OWNERSHIP/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -55,9 +55,10 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-22"/);
   assert.match(html, /href="\/lessons\/lesson-23"/);
   assert.match(html, /href="\/lessons\/lesson-24"/);
-  assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05/s);
-  assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业/s);
-  assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 5);
+  assert.match(html, /href="\/lessons\/lesson-25"/);
+  assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
+  assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
+  assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
   assert.doesNotMatch(html, /NEXT CHECKPOINT/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
@@ -86,6 +87,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-22", /E820.*boot_info.*0x5000.*RDI.*E820COK/is],
     ["/lessons/lesson-23", /PT_LOAD.*p_filesz.*p_memsz.*\.bss.*ELF64OK.*kernel_stack/is],
     ["/lessons/lesson-24", /毕业审计.*stage 1.*stage 2.*boot_info.*PT_LOAD.*Limine/is],
+    ["/lessons/lesson-25", /Limine bootloader.*boot protocol.*request.*response.*RDI.*memory map.*allocator.*cannot open source file.*make limine-deps.*inspect-limine-api.*提示 1/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
   ];
@@ -98,7 +100,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
 
   const indexResponse = await render("/lessons");
   const indexHtml = await indexResponse.text();
-  assert.equal((indexHtml.match(/<details[^>]+class="lesson-section/g) ?? []).length, 5);
+  assert.equal((indexHtml.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
   assert.match(indexHtml, /展开当前阶段继续学习.*按课号范围快速定位/s);
 
   const examResponse = await render("/lessons/lesson-17");

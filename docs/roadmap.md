@@ -12,7 +12,7 @@
 
 目标是把时间花在操作系统抽象、状态转换、资源管理、隔离与并发上，同时保留一条足够可靠的 x86-64 平台证据链。
 
-第 20–24 课是自制 bootloader 的明确毕业阶段：依次完成多扇区加载、stage 1 / stage 2、E820 `boot_info`、ELF `PT_LOAD`、`.bss`、内核栈与 ABI handoff。第 24 课逐项取证并列出有意不实现的生产功能；第 25 课才把自己的交接合同与 Limine protocol 对照后切换。这样 Limine 是成熟实现的替换，而不是用来跳过未讲清的启动缺口。
+第 20–24 课是自制 bootloader 的明确毕业阶段：依次完成多扇区加载、stage 1 / stage 2、E820 `boot_info`、ELF `PT_LOAD`、`.bss`、内核栈与 ABI handoff。第 24 课逐项取证并列出有意不实现的生产功能；第 25 课先介绍 Limine bootloader/protocol，再逐项映射自己的交接合同，并以高半 ELF + memory-map response 建立新内核基线。这样 Limine 是成熟实现的替换，而不是用来跳过未讲清的启动缺口；第 26 课起从物理页 ownership 正式进入 OS 主线。
 
 默认节奏是每周 6-8 小时，共约 20-24 周。实际进度以“能证明掌握”为准，不追赶日历。
 

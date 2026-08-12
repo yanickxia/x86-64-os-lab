@@ -5,8 +5,8 @@
 ## 两条实现线
 
 1. 手工启动线：亲手走一遍 BIOS、16 位实模式、保护模式、分页和长模式，建立 x86 的历史包袱与机器模型。
-2. Bootloader 毕业阶段：继续完成多扇区、stage 2、E820/boot info、ELF/.bss/栈与 ABI handoff；逐项取证后再切换 Limine。
-3. 内核主线：把自制 handoff 与 Limine protocol 对照后，使用成熟启动环境，把精力放在内存、进程、系统调用、并发和文件系统。
+2. Bootloader 毕业阶段：已经完成多扇区、stage 2、E820/boot info、ELF/.bss/栈与 ABI handoff，并完成逐项取证。
+3. 内核主线：从第 25 课起把自制 handoff 与 Limine protocol 对照，使用成熟启动环境，把精力放在内存、进程、系统调用、并发和文件系统。
 
 `../impl-x64-os` 是旧实现和考古材料，不是本课程的起始代码。它的现有修改会原样保留。
 
@@ -29,6 +29,8 @@ make check-tools
 ```
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
+
+当前已完成 [第 25 课：认识 Limine，把启动合同交给成熟 bootloader](docs/lesson-25.md)；下一阶段从物理页所有权开始实现 OS 内存管理。
 
 常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)。
 

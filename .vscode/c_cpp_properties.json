@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "name": "x86-64 freestanding kernel",
+      "compilerPath": "/opt/homebrew/bin/x86_64-elf-gcc",
+      "compilerArgs": [
+        "-ffreestanding",
+        "-m64",
+        "-mcmodel=kernel",
+        "-mno-red-zone"
+      ],
+      "includePath": [
+        "${workspaceFolder}/kernel",
+        "${workspaceFolder}/build/limine/include"
+      ],
+      "browse": {
+        "path": [
+          "${workspaceFolder}/kernel",
+          "${workspaceFolder}/build/limine/include"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "cStandard": "c11",
+      "intelliSenseMode": "macos-gcc-x64"
+    }
+  ],
+  "version": 4
+}

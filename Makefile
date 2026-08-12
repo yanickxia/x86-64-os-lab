@@ -84,6 +84,42 @@ KERNEL_ENTRY_EXPECTED := HelloPTLK
 # so appending a new character in a later lesson must not turn them red.
 BOOT_SYNC_PREFIX := HelloPTL
 
+LIMINE_VERSION := 12.5.2
+LIMINE_PROTOCOL_COMMIT := 4e1587972c148d43b2f397e4e5983bdd6c2a55a0
+LIMINE_DEPS_STAMP := build/limine/.deps-$(LIMINE_VERSION)-$(LIMINE_PROTOCOL_COMMIT)
+LIMINE_HEADER := build/limine/include/limine.h
+LIMINE_BOOT_EFI := build/limine/limine-binary/BOOTX64.EFI
+LIMINE_KERNEL_SRC := kernel/limine_main.c
+LIMINE_KERNEL_LINKER := kernel/limine_linker.ld
+LIMINE_KERNEL_OBJ := build/limine-main.o
+LIMINE_KERNEL_ELF := build/limine-kernel.elf
+LIMINE_IMAGE := build/limine-os.img
+LIMINE_CONFIG := limine.conf
+OVMF_CODE ?= /opt/homebrew/share/qemu/edk2-x86_64-code.fd
+
+LIMINE_CFLAGS := \
+	-std=c11 \
+	-O2 \
+	-g \
+	-Wall \
+	-Wextra \
+	-Werror \
+	-ffreestanding \
+	-fno-builtin \
+	-fno-stack-protector \
+	-fno-pic \
+	-fno-pie \
+	-fno-asynchronous-unwind-tables \
+	-fno-unwind-tables \
+	-ffunction-sections \
+	-fdata-sections \
+	-m64 \
+	-mcmodel=kernel \
+	-mno-red-zone \
+	-mno-mmx \
+	-mno-sse \
+	-mno-sse2
+
 QEMU_BOOT_FLAGS := \
 	-machine pc \
 	-accel tcg \
@@ -97,7 +133,7 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
+.PHONY: check-tools check-limine-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation limine-deps limine-kernel limine-image run-limine inspect-limine-api inspect-limine-handoff check-limine-handoff
 
 check-tools:
 	@set -e; \
@@ -111,6 +147,14 @@ check-tools:
 	@x86_64-elf-gcc -dumpmachine
 	@test "$$(x86_64-elf-gcc -dumpmachine)" = "x86_64-elf"
 	@printf "toolchain check passed\n"
+
+check-limine-tools:
+	@set -e; \
+	for tool in curl shasum mformat mmd mcopy qemu-system-x86_64 x86_64-elf-gcc x86_64-elf-ld x86_64-elf-readelf; do \
+		command -v "$$tool" >/dev/null; \
+	done
+	@test -f $(OVMF_CODE)
+	@printf "Limine/UEFI host tools check passed\n"
 
 qemu-reset:
 	@printf "QEMU is paused before its first instruction; press Ctrl-C to stop it.\n"
@@ -353,3 +397,67 @@ check-bootloader-graduation: check-boot check-stage2-handoff check-e820-boot-inf
 	@printf '%s\n' '  E820 → boot_info → RDI → C'
 	@printf '%s\n' '  ELF PT_LOAD → .bss zero-fill → dedicated stack'
 	@printf '%s\n' '  long mode + minimal #UD recovery remain intact'
+
+$(LIMINE_DEPS_STAMP): scripts/fetch-limine.zsh | check-limine-tools
+	@zsh scripts/fetch-limine.zsh
+	@touch $@
+
+$(LIMINE_HEADER) $(LIMINE_BOOT_EFI): $(LIMINE_DEPS_STAMP)
+	@test -f $@
+
+$(LIMINE_KERNEL_OBJ): $(LIMINE_KERNEL_SRC) $(LIMINE_HEADER)
+	@mkdir -p build
+	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
+
+$(LIMINE_KERNEL_ELF): $(LIMINE_KERNEL_OBJ) $(LIMINE_KERNEL_LINKER)
+	@x86_64-elf-ld -nostdlib -static -z max-page-size=0x1000 --gc-sections -T $(LIMINE_KERNEL_LINKER) -o $@ $(LIMINE_KERNEL_OBJ)
+
+$(LIMINE_IMAGE): $(LIMINE_BOOT_EFI) $(LIMINE_KERNEL_ELF) $(LIMINE_CONFIG)
+	@dd if=/dev/zero of=$@ bs=1048576 count=64 status=none
+	@mformat -i $@ -F ::
+	@mmd -i $@ ::/EFI ::/EFI/BOOT ::/boot ::/boot/limine
+	@mcopy -i $@ $(LIMINE_BOOT_EFI) ::/EFI/BOOT/BOOTX64.EFI
+	@mcopy -i $@ $(LIMINE_CONFIG) ::/boot/limine/limine.conf
+	@mcopy -i $@ $(LIMINE_KERNEL_ELF) ::/boot/kernel.elf
+
+limine-deps: $(LIMINE_HEADER) $(LIMINE_BOOT_EFI)
+
+limine-kernel: $(LIMINE_KERNEL_ELF)
+
+limine-image: $(LIMINE_IMAGE)
+
+run-limine: $(LIMINE_IMAGE)
+	@printf '%s\n' 'Limine debug console output follows; press Ctrl-C to stop QEMU.'
+	@qemu-system-x86_64 \
+		-machine q35 \
+		-accel tcg \
+		-m 256M \
+		-display none \
+		-serial none \
+		-monitor none \
+		-no-reboot \
+		-no-shutdown \
+		-drive if=pflash,unit=0,format=raw,readonly=on,file=$(OVMF_CODE) \
+		-device qemu-xhci \
+		-drive if=none,id=bootdisk,format=raw,readonly=on,file=$(LIMINE_IMAGE) \
+		-device usb-storage,drive=bootdisk,removable=true \
+		-boot order=d \
+		-chardev stdio,id=debugcon,signal=off \
+		-device isa-debugcon,iobase=0xe9,chardev=debugcon
+
+inspect-limine-api: $(LIMINE_HEADER)
+	@printf '%s\n' '== base revision support check =='
+	@rg -n -A 2 '^#define LIMINE_BASE_REVISION_SUPPORTED' $(LIMINE_HEADER)
+	@printf '%s\n' '== memory-map constants and request/response pointer chain =='
+	@rg -n -A 28 '^#define LIMINE_MEMMAP_USABLE' $(LIMINE_HEADER)
+
+inspect-limine-handoff: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== Limine higher-half ELF header and program headers =='
+	@x86_64-elf-readelf -h -lW $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== retained request section and protocol objects =='
+	@x86_64-elf-readelf -SW $(LIMINE_KERNEL_ELF) | rg 'limine_requests|text|rodata|data|bss'
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'limine_(requests|base_revision|kernel_main)|memory_map_request'
+
+check-limine-handoff: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
