@@ -30,7 +30,9 @@ make check-tools
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
-当前已完成 [第 25 课：认识 Limine，把启动合同交给成熟 bootloader](docs/lesson-25.md)；下一阶段从物理页所有权开始实现 OS 内存管理。
+当前已完成 [第 26 课：从内存地图到物理页所有权](docs/lesson-26.md)；下一阶段将用已经分配的 frame 建立 kernel-owned page tables。
+
+多页面课程站由 GitHub Actions 自动部署到 [GitHub Pages](https://yanickxia.github.io/x86-64-os-lab/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 
 常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)。
 
