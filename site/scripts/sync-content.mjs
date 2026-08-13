@@ -223,6 +223,14 @@ const lessonMeta = [
     summary: "把 Limine 的只读 memory map 转成 kernel 自己的物理页 ownership 状态，用最小 allocator 发出两个不同的 4 KiB frame。",
     takeaway: "USABLE → FREE → KERNEL-OWNED",
   },
+  {
+    id: "27",
+    slug: "lesson-27",
+    phase: "内核内存访问",
+    status: "completed",
+    summary: "请求 Limine HHDM offset，把 PMM 返回的 PA 转成可解引用 VA，并用非零哨兵证明完整 4 KiB frame 已被清零。",
+    takeaway: "VA = HHDM offset + PA",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

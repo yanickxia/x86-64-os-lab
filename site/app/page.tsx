@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>内核已经开始管理物理内存</h2>
-            <p>Limine 的只读 memory map 已转化为 kernel-owned ownership 状态；最小 PMM 能跨 range 发出不同的 4 KiB frame，并维护分配前后的计数不变量。</p>
+            <h2>内核已经能访问自己的物理页</h2>
+            <p>PMM 负责 frame ownership，Limine HHDM 提供可访问 mapping，kernel 再把完整 4 KiB contents 从非零哨兵清零；三层状态已经有了独立证据。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>USABLE → FREE → KERNEL-OWNED</code>
+            <code>PA → HHDM VA → ZEROED FRAME</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

@@ -4,7 +4,11 @@
 
 #include <limine.h>
 
+#include "hhdm.h"
 #include "pmm.h"
+
+#define HHDM_POISON UINT64_C(0xa5a55a5adeadbeef)
+#define PAGE_WORD_COUNT (PMM_PAGE_SIZE / sizeof(uint64_t))
 
 __attribute__((used, section(".limine_requests_start")))
 static volatile uint64_t limine_requests_start[] = LIMINE_REQUESTS_START_MARKER;
@@ -15,6 +19,12 @@ static volatile uint64_t limine_base_revision[] = LIMINE_BASE_REVISION(6);
 __attribute__((used, section(".limine_requests")))
 static volatile struct limine_memmap_request memory_map_request = {
     .id = LIMINE_MEMMAP_REQUEST_ID,
+    .revision = 0,
+};
+
+__attribute__((used, section(".limine_requests")))
+static volatile struct limine_hhdm_request hhdm_request = {
+    .id = LIMINE_HHDM_REQUEST_ID,
     .revision = 0,
 };
 
@@ -55,6 +65,34 @@ static bool usable_page_contains(const struct limine_memmap_response *response, 
     }
 
     return false;
+}
+
+/* Observer infrastructure: give every word a non-zero value before the exercise clears it. */
+static bool poison_hhdm_page(uint64_t hhdm_offset, uint64_t physical_address) {
+    if ((physical_address & (PMM_PAGE_SIZE - 1)) != 0 || physical_address > UINT64_MAX - hhdm_offset) {
+        return false;
+    }
+
+    uint64_t *page = (uint64_t *)(uintptr_t)(hhdm_offset + physical_address);
+    for (size_t index = 0; index < PAGE_WORD_COUNT; ++index) {
+        page[index] = HHDM_POISON;
+    }
+
+    return true;
+}
+
+static bool page_is_zero(const uint64_t *page) {
+    if (page == NULL) {
+        return false;
+    }
+
+    for (size_t index = 0; index < PAGE_WORD_COUNT; ++index) {
+        if (page[index] != 0) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static bool accept_limine_handoff(void) {
@@ -149,14 +187,70 @@ void limine_kernel_main(void) {
     debug_hex64(allocator.allocated_pages);
     debug_putc('\n');
 
-    if (free_before >= 2 && first_page != second_page &&
-        (first_page & (PMM_PAGE_SIZE - 1)) == 0 &&
-        (second_page & (PMM_PAGE_SIZE - 1)) == 0 &&
-        usable_page_contains(response, first_page) &&
-        usable_page_contains(response, second_page) &&
-        allocator.free_pages == free_before - 2 &&
-        allocator.allocated_pages == 2) {
-        debug_puts("PMM:OK\n");
+    const bool pmm_state_valid = free_before >= 2 && first_page != second_page &&
+                                 (first_page & (PMM_PAGE_SIZE - 1)) == 0 &&
+                                 (second_page & (PMM_PAGE_SIZE - 1)) == 0 &&
+                                 usable_page_contains(response, first_page) &&
+                                 usable_page_contains(response, second_page) &&
+                                 allocator.free_pages == free_before - 2 &&
+                                 allocator.allocated_pages == 2;
+
+    if (!pmm_state_valid) {
+        debug_puts("PMM:STATE:FAIL\n");
+        halt_forever();
+    }
+
+    debug_puts("PMM:OK\n");
+
+    const struct limine_hhdm_response *hhdm_response = hhdm_request.response;
+    if (hhdm_response == NULL) {
+        debug_puts("HHDM:RESPONSE:FAIL\n");
+        halt_forever();
+    }
+
+    debug_puts("HHDM:RESPONSE:OK\n");
+
+    if (!poison_hhdm_page(hhdm_response->offset, first_page)) {
+        debug_puts("HHDM:POISON:FAIL\n");
+        halt_forever();
+    }
+
+    uint64_t *virtual_page = NULL;
+    const uint64_t *poisoned_page = (const uint64_t *)(uintptr_t)(hhdm_response->offset + first_page);
+    const uint64_t before_first = poisoned_page[0];
+    const uint64_t before_last = poisoned_page[PAGE_WORD_COUNT - 1];
+
+    if (!hhdm_prepare_page(hhdm_response->offset, first_page, &virtual_page)) {
+        debug_puts("HHDM:PREPARE:FAIL\n");
+        halt_forever();
+    }
+
+    debug_puts("HHDM:OFFSET=");
+    debug_hex64(hhdm_response->offset);
+    debug_putc('\n');
+    debug_puts("HHDM:PA=");
+    debug_hex64(first_page);
+    debug_putc('\n');
+    debug_puts("HHDM:VA=");
+    debug_hex64((uint64_t)(uintptr_t)virtual_page);
+    debug_putc('\n');
+    debug_puts("HHDM:BEFORE-FIRST=");
+    debug_hex64(before_first);
+    debug_putc('\n');
+    debug_puts("HHDM:BEFORE-LAST=");
+    debug_hex64(before_last);
+    debug_putc('\n');
+    debug_puts("HHDM:AFTER-FIRST=");
+    debug_hex64(virtual_page[0]);
+    debug_putc('\n');
+    debug_puts("HHDM:AFTER-LAST=");
+    debug_hex64(virtual_page[PAGE_WORD_COUNT - 1]);
+    debug_putc('\n');
+
+    if (before_first == HHDM_POISON && before_last == HHDM_POISON && page_is_zero(virtual_page)) {
+        debug_puts("HHDM:PAGE:OK\n");
+    } else {
+        debug_puts("HHDM:ZERO:FAIL\n");
     }
 
     halt_forever();

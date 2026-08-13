@@ -30,7 +30,7 @@ make check-tools
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
-当前已完成 [第 26 课：从内存地图到物理页所有权](docs/lesson-26.md)；下一阶段将用已经分配的 frame 建立 kernel-owned page tables。
+当前已完成 [第 27 课：通过 HHDM 访问并清零物理页](docs/lesson-27.md)：已经建立 `PA → 可访问 VA → 已初始化 contents` 的证据；下一阶段会先建立异常安全网，再把 frame 组织成 kernel-owned page tables。
 
 多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 

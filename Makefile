@@ -91,11 +91,13 @@ LIMINE_HEADER := build/limine/include/limine.h
 LIMINE_BOOT_EFI := build/limine/limine-binary/BOOTX64.EFI
 LIMINE_KERNEL_SRC := kernel/limine_main.c
 LIMINE_PMM_SRC := kernel/pmm.c
-LIMINE_KERNEL_HEADERS := kernel/pmm.h
+LIMINE_HHDM_SRC := kernel/hhdm.c
+LIMINE_KERNEL_HEADERS := kernel/pmm.h kernel/hhdm.h
 LIMINE_KERNEL_LINKER := kernel/limine_linker.ld
 LIMINE_KERNEL_OBJ := build/limine-main.o
 LIMINE_PMM_OBJ := build/limine-pmm.o
-LIMINE_KERNEL_OBJS := $(LIMINE_KERNEL_OBJ) $(LIMINE_PMM_OBJ)
+LIMINE_HHDM_OBJ := build/limine-hhdm.o
+LIMINE_KERNEL_OBJS := $(LIMINE_KERNEL_OBJ) $(LIMINE_PMM_OBJ) $(LIMINE_HHDM_OBJ)
 LIMINE_KERNEL_ELF := build/limine-kernel.elf
 LIMINE_IMAGE := build/limine-os.img
 LIMINE_CONFIG := limine.conf
@@ -137,7 +139,19 @@ QEMU_BOOT_FLAGS := \
 	-boot order=a \
 	-drive if=floppy,format=raw,readonly=on,file=$(OS_IMAGE)
 
-.PHONY: check-tools check-limine-tools qemu-reset inspect-reset boot stage2 kernel-elf image check-boot check-image qemu-boot inspect-boot check-debugcon run-debugcon disassemble-boot disassemble-stage2 disassemble-kernel inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt inspect-protected inspect-long-mode check-segments check-call check-a20 check-gdt check-protected check-page-tables check-long-mode check-kernel-load check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation limine-deps limine-kernel limine-image run-limine inspect-limine-api inspect-limine-handoff inspect-physical-pages check-limine-handoff check-physical-pages
+.PHONY: check-tools check-limine-tools qemu-reset inspect-reset
+.PHONY: boot stage2 kernel-elf image qemu-boot
+.PHONY: inspect-boot inspect-reset disassemble-boot disassemble-stage2 disassemble-kernel
+.PHONY: inspect-kernel-elf inspect-kernel-c inspect-exception inspect-image inspect-kernel-span
+.PHONY: inspect-stage2 inspect-boot-info inspect-elf-loader inspect-message inspect-gdt
+.PHONY: inspect-protected inspect-long-mode
+.PHONY: check-boot check-image check-debugcon run-debugcon check-segments check-call check-a20
+.PHONY: check-gdt check-protected check-page-tables check-long-mode check-kernel-load
+.PHONY: check-multisector-load check-stage2-handoff check-e820-boot-info check-elf-loader
+.PHONY: check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
+.PHONY: limine-deps limine-kernel limine-image run-limine
+.PHONY: inspect-limine-api inspect-limine-handoff inspect-physical-pages inspect-hhdm-page
+.PHONY: check-limine-handoff check-physical-pages check-hhdm-page
 
 check-tools:
 	@set -e; \
@@ -154,7 +168,8 @@ check-tools:
 
 check-limine-tools:
 	@set -e; \
-	for tool in curl shasum mformat mmd mcopy qemu-system-x86_64 x86_64-elf-gcc x86_64-elf-ld x86_64-elf-readelf; do \
+	for tool in curl shasum mformat mmd mcopy python3 qemu-system-x86_64 \
+		x86_64-elf-gcc x86_64-elf-ld x86_64-elf-readelf; do \
 		command -v "$$tool" >/dev/null; \
 	done
 	@test -f $(OVMF_CODE)
@@ -417,6 +432,10 @@ $(LIMINE_PMM_OBJ): $(LIMINE_PMM_SRC) $(LIMINE_KERNEL_HEADERS) $(LIMINE_HEADER)
 	@mkdir -p build
 	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
 
+$(LIMINE_HHDM_OBJ): $(LIMINE_HHDM_SRC) $(LIMINE_KERNEL_HEADERS)
+	@mkdir -p build
+	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
+
 $(LIMINE_KERNEL_ELF): $(LIMINE_KERNEL_OBJS) $(LIMINE_KERNEL_LINKER)
 	@x86_64-elf-ld -nostdlib -static -z max-page-size=0x1000 --gc-sections -T $(LIMINE_KERNEL_LINKER) -o $@ $(LIMINE_KERNEL_OBJS)
 
@@ -474,6 +493,15 @@ inspect-physical-pages: $(LIMINE_KERNEL_ELF)
 	@printf '%s\n' '== linked PMM symbols =='
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'pmm_(init|alloc_page)'
 
+inspect-hhdm-page: $(LIMINE_KERNEL_ELF) $(LIMINE_HEADER)
+	@printf '%s\n' '== pinned Limine HHDM request/response ABI =='
+	@rg -n -A 16 '^/\* HHDM \*/' $(LIMINE_HEADER)
+	@printf '%s\n' '== lesson 27 HHDM page API and implementation slot =='
+	@sed -n '1,180p' kernel/hhdm.h
+	@sed -n '1,240p' kernel/hhdm.c
+	@printf '%s\n' '== linked HHDM symbols and retained request =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'hhdm_(request|prepare_page)'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
@@ -481,3 +509,7 @@ check-limine-handoff: $(LIMINE_IMAGE)
 check-physical-pages: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-physical-pages.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
+
+check-hhdm-page: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-hhdm-page.zsh $(LIMINE_IMAGE) $(OVMF_CODE)

@@ -90,6 +90,8 @@ make check-bootloader-graduation # 聚合 stage2/E820/ELF/long-mode/#UD 既有�
 make inspect-limine-handoff # 静态观察高半 ELF entry、PT_LOAD 与 .limine_requests
 make inspect-limine-api # 显示本地固定版 limine.h 中 base-revision 与 memmap 指针链定义
 make check-limine-handoff # UEFI → Limine → 高半 ELF entry → memory-map response
+make check-physical-pages # PMM 从 USABLE ranges 发出两个不同的 4 KiB physical frames
+make check-hhdm-page # HHDM offset + PA → VA，并把 kernel-owned frame 完整清零
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -110,6 +112,7 @@ make inspect-elf-loader   # 查看 loader-facing ELF program headers、copy/zero
 make inspect-image       # 查看 boot signature 与 sector 2 起始字节
 make inspect-message     # xxd 偏移 0x40 起 7 字节
 make inspect-gdt         # xxd 偏移 0x50 起 30 字节
+make inspect-hhdm-page   # 查看固定版 HHDM ABI、本课 helper 槽位和链接符号
 make qemu-reset          # 终端 A：QEMU 停在第一条指令前
 make inspect-reset       # 终端 B：GDB 连上去读复位状态
 make qemu-boot           # 终端 A：停在 reset，配合 inspect-boot
@@ -200,7 +203,7 @@ npm run lint
 
 `docs/lesson-NN.md`：`# 第 N 课：…` → `## 先修知识` → `## 本课只引入一个机制` → 机制正文（含“为什么有这个东西”的历史演化）→ 红灯成因说明（明确先不运行）→ `## 实验前预测` → 实际运行红灯与练习 → 绿灯取证 → `## 观察题` → `## 完成标准`。
 
-引入新机制的实验课使用：`## 实验前预测`（或`实验前计算`）→ `## 红灯` → `## 我的实现` → `## 绿灯原始观察` → `## 我的解释` → `## 仍然不清楚的问题`。观察题与“我的解释”按编号一一对应。纯总结章可以改用主题式复盘，不设置红灯/绿灯，也不新增验收命令；第 15、16 课都是这个例外，因此两课都没有 `## 先修知识` 与红/绿灯小节。
+引入新机制的实验课使用：`## 实验前预测`（或`实验前计算`）→ `## 红灯` → `## 我的实现` → `## 绿灯原始观察` → `## 预测修订` → `## 我的解释` → `## 仍然不清楚的问题`。预测修订逐条记录“原预测 / 真实结果 / 错误原因”；即使原预测正确，也写明与真实结果一致及其证据。观察题与“我的解释”按编号一一对应。纯总结章可以改用主题式复盘，不设置红灯/绿灯，也不新增验收命令；第 15、16 课都是这个例外，因此两课都没有 `## 先修知识` 与红/绿灯小节。
 - 当前日期默认填充今日
 
 `docs/reference/assembly-basics.md` 是跨课复用的汇编底座，新语法首次出现时补到这里。
@@ -225,7 +228,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–26 课已结课；第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–27 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -276,5 +279,7 @@ npm run lint
 第 25 课已结课：学习者已区分 Limine bootloader、Limine boot protocol 与 `limine.h`，并把 stage 1/stage 2/E820/`boot_info`/ELF/long-mode/stack 逐项映射到 Limine handoff。新路径独立生成 UEFI FAT image，高半 ELF entry 为 `0xffffffff80001000`；依赖固定为 bootloader 12.5.2 和 protocol commit `4e1587972c14`。`accept_limine_handoff()` 已完成 base revision、response、count、entry pointer 与 usable range 校验，`UEFI → Limine → higher-half entry → memory-map response` 绿灯；旧自制 bootloader 路径继续通过全部回归。学习记录已补齐 request/response、kernel mapping/HHDM/PA、协议指针、Limine 职责边界，以及 memory map 与 allocator 的所有权差异。
 
 第 26 课已结课：`kernel/pmm.c/.h` 建立 monotonic physical-page allocator，`pmm_init()` 只统计 `LIMINE_MEMMAP_USABLE`，`pmm_alloc_page()` 通过跨调用 cursor 跨 range 发出 frame；不提前回收仍存有 response/stack/page tables 的 `BOOTLOADER_RECLAIMABLE`。`make check-physical-pages` 证明两次分配得到不同、4 KiB 对齐且位于 usable range 的 PA，`free_pages` 减 2、`allocated_pages` 变为 2。PA 0 在 base revision 6 下可能合法，因此 API 使用 `bool + output parameter`，不能用返回 0 表示失败。学习者已能区分 memory-map 启动快照、PMM ownership state 与后续 VMM mapping，并说明 HHDM、清零 frame、建立页表层级和切换 CR3 的后续链路。
+
+第 27 课已结课：新增 Limine HHDM request；`hhdm_prepare_page()` 检查 output pointer、4 KiB alignment 和 `offset + PA` overflow，用 response 动态提供的 offset 得到 VA，并清零完整 512 个 qwords。实验 observer 先写入非零 sentinel，`make check-hhdm-page` 再证明 `VA=offset+PA`、首尾变化和完整 4096-byte 清零。学习者已能区分 PMM ownership、Limine HHDM mapping 与 kernel contents initialization，并说明一个页表页有 512 entries 不等于整套页表只有一页。笔记从本课起在绿灯观察和“我的解释”之间使用独立“预测修订”，保留原预测并逐条记录真实结果和错误原因。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。
