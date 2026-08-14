@@ -36,3 +36,18 @@ bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_addres
 
     return true;
 }
+
+bool vmm_clone_root_preserving_entry(uint64_t *destination, const uint64_t *source, uint64_t preserved_index) {
+    /*
+     * RED / TODO (lesson 30): copy the active PML4 into the new root without
+     * overwriting the one destination slot that already owns our custom path.
+     *
+     * Reject NULL, an in-place copy, and an index outside one 512-entry PML4.
+     * This helper only copies root entries; loading CR3 remains an x86 bridge
+     * supplied by the lesson scaffold.
+     */
+    (void)destination;
+    (void)source;
+    (void)preserved_index;
+    return false;
+}

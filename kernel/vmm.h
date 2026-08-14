@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define VMM_PAGE_SIZE UINT64_C(4096)
+#define VMM_ENTRY_COUNT UINT64_C(512)
 #define VMM_INDEX_MASK UINT64_C(0x1ff)
 #define VMM_PAGE_ADDRESS_MASK UINT64_C(0x000ffffffffff000)
 
@@ -33,5 +34,11 @@ struct vmm_page_table_path {
 };
 
 bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_address, uint64_t physical_address);
+
+/*
+ * Bootstrap a new root from the currently active root while retaining the
+ * destination entry that owns the lesson-29 mapping path.
+ */
+bool vmm_clone_root_preserving_entry(uint64_t *destination, const uint64_t *source, uint64_t preserved_index);
 
 #endif

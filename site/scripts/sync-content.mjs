@@ -247,6 +247,14 @@ const lessonMeta = [
     summary: "把四个 kernel-owned frames 连接成一条可检查的 PML4→PDPT→PD→PT 映射路径，暂不加载 CR3。",
     takeaway: "VA INDICES → TABLE PAs → LEAF PA",
   },
+  {
+    id: "30",
+    slug: "lesson-30",
+    phase: "虚拟内存",
+    status: "next",
+    summary: "浅拷贝 active PML4 的 live entries、保留 custom mapping slot，再切换 CR3 并验证 code、stack、HHDM、alias 与 #PF 全部存活。",
+    takeaway: "BORROW LIVE SUBTREES → LOAD CR3",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

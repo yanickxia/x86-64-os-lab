@@ -13,6 +13,7 @@
 #define PAGE_WORD_COUNT (PMM_PAGE_SIZE / sizeof(uint64_t))
 #define LESSON_PAGE_FAULT_ADDRESS UINT64_C(0x0000400000000000)
 #define LESSON_VMM_TARGET_ADDRESS UINT64_C(0x0000123456789000)
+#define LESSON_VMM_ALIAS_MARKER UINT64_C(0x30c0ffee30c0ffee)
 #define IDT_ENTRY_COUNT 256
 
 struct idt_gate {
@@ -111,6 +112,17 @@ static uint64_t read_cr2(void) {
 static uint64_t read_cr3(void) {
     uint64_t value;
     __asm__ volatile("mov %%cr3, %0" : "=r"(value));
+    return value;
+}
+
+static void write_cr3(uint64_t value) {
+    /* Architecture bridge: MOV to CR3 selects a new translation root and flushes non-global TLB entries. */
+    __asm__ volatile("mov %0, %%cr3" : : "r"(value) : "memory");
+}
+
+static uint64_t read_rsp(void) {
+    uint64_t value;
+    __asm__ volatile("mov %%rsp, %0" : "=r"(value));
     return value;
 }
 
@@ -455,6 +467,105 @@ void limine_kernel_main(void) {
         if (table_path_valid) {
             debug_puts("VMM:ROOT:INACTIVE\n");
             debug_puts("VMM:BUILD:OK\n");
+
+            const uint64_t old_cr3 = active_cr3;
+            const uint64_t old_root_pa = old_cr3 & VMM_PAGE_ADDRESS_MASK;
+            const uint64_t stack_address = read_rsp();
+            const uint64_t preserved_index = VMM_PML4_INDEX(LESSON_VMM_TARGET_ADDRESS);
+            const uint64_t kernel_index = VMM_PML4_INDEX((uint64_t)(uintptr_t)limine_kernel_main);
+            const uint64_t hhdm_index = VMM_PML4_INDEX(hhdm_response->offset);
+            const uint64_t stack_index = VMM_PML4_INDEX(stack_address);
+            const uint64_t *old_root = NULL;
+
+            if (old_root_pa <= UINT64_MAX - hhdm_response->offset) {
+                old_root = (const uint64_t *)(uintptr_t)(hhdm_response->offset + old_root_pa);
+            }
+
+            if (!vmm_clone_root_preserving_entry(kernel_path.pml4, old_root, preserved_index)) {
+                debug_puts("VMM:CLONE:FAIL\n");
+            } else {
+                const uint64_t old_kernel_entry = old_root[kernel_index];
+                const uint64_t copied_kernel_entry = kernel_path.pml4[kernel_index];
+                const uint64_t old_hhdm_entry = old_root[hhdm_index];
+                const uint64_t copied_hhdm_entry = kernel_path.pml4[hhdm_index];
+                const uint64_t old_stack_entry = old_root[stack_index];
+                const uint64_t copied_stack_entry = kernel_path.pml4[stack_index];
+
+                debug_puts("VMM:CLONE:OK\n");
+                debug_puts("VMM:OLD-CR3=");
+                debug_hex64(old_cr3);
+                debug_putc('\n');
+                debug_puts("VMM:PRESERVED-INDEX=");
+                debug_hex64(preserved_index);
+                debug_putc('\n');
+                debug_puts("VMM:KERNEL-PML4-INDEX=");
+                debug_hex64(kernel_index);
+                debug_putc('\n');
+                debug_puts("VMM:HHDM-PML4-INDEX=");
+                debug_hex64(hhdm_index);
+                debug_putc('\n');
+                debug_puts("VMM:STACK-VA=");
+                debug_hex64(stack_address);
+                debug_putc('\n');
+                debug_puts("VMM:STACK-PML4-INDEX=");
+                debug_hex64(stack_index);
+                debug_putc('\n');
+                debug_puts("VMM:KERNEL-OLD-PML4E=");
+                debug_hex64(old_kernel_entry);
+                debug_putc('\n');
+                debug_puts("VMM:KERNEL-COPIED-PML4E=");
+                debug_hex64(copied_kernel_entry);
+                debug_putc('\n');
+                debug_puts("VMM:HHDM-OLD-PML4E=");
+                debug_hex64(old_hhdm_entry);
+                debug_putc('\n');
+                debug_puts("VMM:HHDM-COPIED-PML4E=");
+                debug_hex64(copied_hhdm_entry);
+                debug_putc('\n');
+                debug_puts("VMM:STACK-OLD-PML4E=");
+                debug_hex64(old_stack_entry);
+                debug_putc('\n');
+                debug_puts("VMM:STACK-COPIED-PML4E=");
+                debug_hex64(copied_stack_entry);
+                debug_putc('\n');
+
+                volatile uint64_t *target_alias = (volatile uint64_t *)(uintptr_t)LESSON_VMM_TARGET_ADDRESS;
+                volatile uint64_t *hhdm_alias = (volatile uint64_t *)(uintptr_t)(hhdm_response->offset + first_page);
+                const uint64_t target_before = *hhdm_alias;
+
+                write_cr3(kernel_path.pml4_pa);
+
+                const uint64_t new_cr3 = read_cr3();
+                *target_alias = LESSON_VMM_ALIAS_MARKER;
+                const uint64_t target_after = *target_alias;
+                const uint64_t hhdm_after = *hhdm_alias;
+
+                debug_puts("VMM:NEW-CR3=");
+                debug_hex64(new_cr3);
+                debug_putc('\n');
+                debug_puts("VMM:TARGET-BEFORE=");
+                debug_hex64(target_before);
+                debug_putc('\n');
+                debug_puts("VMM:TARGET-AFTER=");
+                debug_hex64(target_after);
+                debug_putc('\n');
+                debug_puts("VMM:HHDM-AFTER=");
+                debug_hex64(hhdm_after);
+                debug_putc('\n');
+
+                const bool activation_valid =
+                    (new_cr3 & VMM_PAGE_ADDRESS_MASK) == kernel_path.pml4_pa &&
+                    target_before == 0 && target_after == LESSON_VMM_ALIAS_MARKER &&
+                    hhdm_after == LESSON_VMM_ALIAS_MARKER;
+
+                if (activation_valid) {
+                    debug_puts("VMM:ALIAS:OK\n");
+                    debug_puts("VMM:ACTIVATE:OK\n");
+                } else {
+                    debug_puts("VMM:ACTIVATE:FAIL\n");
+                    halt_forever();
+                }
+            }
         } else {
             debug_puts("VMM:BUILD:FAIL\n");
         }

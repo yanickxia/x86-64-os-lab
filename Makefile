@@ -157,8 +157,9 @@ QEMU_BOOT_FLAGS := \
 .PHONY: check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
 .PHONY: limine-deps limine-kernel limine-image run-limine
 .PHONY: inspect-limine-api inspect-limine-handoff inspect-physical-pages inspect-hhdm-page
-.PHONY: inspect-page-fault inspect-kernel-page-table check-limine-handoff check-physical-pages check-hhdm-page check-page-fault
-.PHONY: check-kernel-page-table
+.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space
+.PHONY: check-limine-handoff check-physical-pages check-hhdm-page check-page-fault
+.PHONY: check-kernel-page-table check-kernel-address-space
 
 check-tools:
 	@set -e; \
@@ -537,6 +538,14 @@ inspect-kernel-page-table: $(LIMINE_KERNEL_ELF)
 	@printf '%s\n' '== linked VMM symbols =='
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_map_single_4k'
 
+inspect-kernel-address-space: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== lesson 30 root-clone API and CR3 bridge =='
+	@sed -n '1,280p' kernel/vmm.h
+	@sed -n '1,300p' kernel/vmm.c
+	@rg -n -A 8 'static void write_cr3|static uint64_t read_rsp' kernel/limine_main.c
+	@printf '%s\n' '== linked address-space symbols =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_(map_single_4k|clone_root_preserving_entry)'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
@@ -556,3 +565,7 @@ check-page-fault: $(LIMINE_IMAGE)
 check-kernel-page-table: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-kernel-page-table.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
+
+check-kernel-address-space: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-kernel-address-space.zsh $(LIMINE_IMAGE) $(OVMF_CODE)

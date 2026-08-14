@@ -38,10 +38,10 @@ test("renders the current course homepage", async () => {
   assert.match(html, /<strong>30<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?30(?:<!-- -->)? 节/);
-  assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /第一条 kernel-owned 映射已经成形/);
-  assert.match(html, /VA INDICES → TABLE PAs → LEAF PA/);
+  assert.match(html, /共 (?:<!-- -->)?31(?:<!-- -->)? 节/);
+  assert.match(html, /NEXT CHECKPOINT/);
+  assert.match(html, /下一步：.*虚拟内存/s);
+  assert.match(html, /BORROW LIVE SUBTREES → LOAD CR3/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -60,13 +60,14 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-27"/);
   assert.match(html, /href="\/lessons\/lesson-28"/);
   assert.match(html, /href="\/lessons\/lesson-29"/);
+  assert.match(html, /href="\/lessons\/lesson-30"/);
   assert.match(html, /href="\/reference"/);
   assert.match(html, /href="\/reference\/c"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
-  assert.doesNotMatch(html, /NEXT CHECKPOINT/);
+  assert.doesNotMatch(html, /MILESTONE REACHED/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -103,6 +104,9 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-29", /indices: 0x24 \/ 0xd1 \/ 0xb3 \/ 0x189/],
     ["/lessons/lesson-29", /entries: 0x2003 → 0x3003 → 0x4003 → 0x0003/],
     ["/lessons/lesson-29", /VMM:ROOT:INACTIVE.*唯一新增的收束题/is],
+    ["/lessons/lesson-30", /kernel-owned PML4.*shallow copy.*borrowed subtrees.*MOV CR3/is],
+    ["/lessons/lesson-30", /0x24.*0x1ff.*0x100.*0x30c0ffee30c0ffee.*PF:DIAG:OK/is],
+    ["/lessons/lesson-30", /不预测 old.*CR3.*精确.*RSP.*唯一新增的解释题/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
     ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],

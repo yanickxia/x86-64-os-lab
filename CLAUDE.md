@@ -95,6 +95,7 @@ make check-physical-pages # PMM 从 USABLE ranges 发出两个不同的 4 KiB ph
 make check-hhdm-page # HHDM offset + PA → VA，并把 kernel-owned frame 完整清零
 make check-page-fault # vector 14 → C，检查 CR2/error code/saved RIP 诊断
 make check-kernel-page-table # 四个 kernel-owned frames → 一条未激活的 4 KiB mapping path
+make check-kernel-address-space # shallow-copy live root entries → 加载 kernel-owned CR3
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -118,6 +119,7 @@ make inspect-gdt         # xxd 偏移 0x50 起 30 字节
 make inspect-hhdm-page   # 查看固定版 HHDM ABI、本课 helper 槽位和链接符号
 make inspect-page-fault  # 查看 #PF decoder API 与导师提供的 IDT/汇编 bridge
 make inspect-kernel-page-table # 查看第 29 课 VMM API、四级 index/entry 合同与链接符号
+make inspect-kernel-address-space # 查看第 30 课 root clone API 与 CR3 bridge
 make qemu-reset          # 终端 A：QEMU 停在第一条指令前
 make inspect-reset       # 终端 B：GDB 连上去读复位状态
 make qemu-boot           # 终端 A：停在 reset，配合 inspect-boot
@@ -233,7 +235,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–29 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造但尚不激活第一条 kernel-owned page-table path。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–29 课已结课，第 30 课红灯脚手架已开放。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造但尚不激活第一条 kernel-owned page-table path。第 30 课要求 shallow-copy active PML4 entries、保留 custom index `0x24`，然后由导师提供的 CR3 bridge 激活 kernel-owned root。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -290,5 +292,7 @@ npm run lint
 第 28 课已结课：导师提供 256-entry IDT、vector 14 gate、`#PF` assembly bridge、尽早读取 CR2 的 C handler、固定未映射 VA store 和停机 policy；学习者完成纯 C `page_fault_decode()`。真实证据为 CR2 `0x0000400000000000`、error `0x2`、RIP 位于高半 kernel，解码为 non-present supervisor data write。`PF:DIAG:OK` 证明本次 vector 14 的路由、原始证据捕获和 bits 0..4 解码成立，不代表已有缺页恢复、用户地址空间 policy 或完整异常系统。
 
 第 29 课已结课：复用第 28 课 `#PF` 安全网，以 PA `0x1000..0x4000` 的四个已清零 frames 作为 PML4/PDPT/PD/PT，把 VA `0x0000123456789000` 映射到 PA 0。`vmm_map_single_4k()` 连接四个 9-bit indices 对应的 parent/leaf entries；不分配 frame、不做 HHDM 转换、不加载 CR3。绿灯验证 indices `0x24/0xd1/0xb3/0x189`、entries `0x2003→0x3003→0x4003→0x3`、新 root 与 active CR3 不同；额外 pure-C checks 验证 NULL、四个 table PA、target PA 与 target VA 的非法输入均被拒绝。
+
+第 30 课当前为红灯：`vmm_clone_root_preserving_entry()` 固定返回 false，因此输出 `VMM:CLONE:FAIL`，不加载新 CR3，随后仍由旧 root 完成固定 `#PF` 诊断。导师已临时实现并撤回正确版本：复制 active PML4 的 511 个非 custom entries 后，CR3 从 Limine root 切到 PA `0x1000`；kernel/HHDM/stack root entries 保持，custom VA 与 HHDM alias 都观察到 `0x30c0ffee30c0ffee`，切换后的 `PF:DIAG:OK` 也通过。这里是 bootstrap shallow copy，borrowed lower tables 仍不归 kernel ownership。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。
