@@ -1,0 +1,38 @@
+#include "vmm.h"
+
+#include <stddef.h>
+
+bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_address, uint64_t physical_address) {
+    /*
+     * Lesson 29 contract: connect one already-cleared four-level path.
+     *
+     * 1. Reject NULL table pointers and non-page-aligned physical addresses.
+     * 2. Select one entry at each level with the VMM_*_INDEX macros.
+     * 3. Parent entries contain the next table's PA | PRESENT | WRITABLE.
+     * 4. The leaf PTE contains physical_address | PRESENT | WRITABLE.
+     *
+     * Do not put an HHDM virtual pointer into a paging entry and do not load
+     * CR3 here. Allocation, HHDM conversion, clearing and activation belong to
+     * separate layers of the lesson scaffold.
+     */
+    if (path == NULL || path->pml4 == NULL || path->pt == NULL || path->pd == NULL || path->pdpt == NULL) {
+        return false;
+    }
+
+    if ((path->pml4_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (path->pdpt_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (path->pd_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (path->pt_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (physical_address & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (virtual_address & (VMM_PAGE_SIZE - 1)) != 0) {
+        return false;
+    }
+
+    const uint64_t flags = VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE;
+    path->pml4[VMM_PML4_INDEX(virtual_address)] = path->pdpt_pa | flags;
+    path->pdpt[VMM_PDPT_INDEX(virtual_address)] = path->pd_pa | flags;
+    path->pd[VMM_PD_INDEX(virtual_address)] = path->pt_pa | flags;
+    path->pt[VMM_PT_INDEX(virtual_address)] = physical_address | flags;
+
+    return true;
+}

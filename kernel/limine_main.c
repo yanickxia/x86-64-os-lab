@@ -7,10 +7,12 @@
 #include "faults.h"
 #include "hhdm.h"
 #include "pmm.h"
+#include "vmm.h"
 
 #define HHDM_POISON UINT64_C(0xa5a55a5adeadbeef)
 #define PAGE_WORD_COUNT (PMM_PAGE_SIZE / sizeof(uint64_t))
 #define LESSON_PAGE_FAULT_ADDRESS UINT64_C(0x0000400000000000)
+#define LESSON_VMM_TARGET_ADDRESS UINT64_C(0x0000123456789000)
 #define IDT_ENTRY_COUNT 256
 
 struct idt_gate {
@@ -103,6 +105,12 @@ static void page_faults_install(void) {
 static uint64_t read_cr2(void) {
     uint64_t value;
     __asm__ volatile("mov %%cr2, %0" : "=r"(value));
+    return value;
+}
+
+static uint64_t read_cr3(void) {
+    uint64_t value;
+    __asm__ volatile("mov %%cr3, %0" : "=r"(value));
     return value;
 }
 
@@ -357,6 +365,101 @@ void limine_kernel_main(void) {
 
     page_faults_install();
     debug_puts("PF:IDT:OK\n");
+
+    struct vmm_page_table_path kernel_path = {
+        .pml4_pa = second_page,
+        .pdpt_pa = PMM_NO_PAGE,
+        .pd_pa = PMM_NO_PAGE,
+        .pt_pa = PMM_NO_PAGE,
+        .pml4 = NULL,
+        .pdpt = NULL,
+        .pd = NULL,
+        .pt = NULL,
+    };
+
+    if (!pmm_alloc_page(&allocator, &kernel_path.pdpt_pa) ||
+        !pmm_alloc_page(&allocator, &kernel_path.pd_pa) ||
+        !pmm_alloc_page(&allocator, &kernel_path.pt_pa) ||
+        !hhdm_prepare_page(hhdm_response->offset, kernel_path.pml4_pa, &kernel_path.pml4) ||
+        !hhdm_prepare_page(hhdm_response->offset, kernel_path.pdpt_pa, &kernel_path.pdpt) ||
+        !hhdm_prepare_page(hhdm_response->offset, kernel_path.pd_pa, &kernel_path.pd) ||
+        !hhdm_prepare_page(hhdm_response->offset, kernel_path.pt_pa, &kernel_path.pt)) {
+        debug_puts("VMM:FRAMES:FAIL\n");
+        halt_forever();
+    }
+
+    debug_puts("VMM:FRAMES:OK\n");
+    debug_puts("VMM:ROOT-PA=");
+    debug_hex64(kernel_path.pml4_pa);
+    debug_putc('\n');
+    debug_puts("VMM:PDPT-PA=");
+    debug_hex64(kernel_path.pdpt_pa);
+    debug_putc('\n');
+    debug_puts("VMM:PD-PA=");
+    debug_hex64(kernel_path.pd_pa);
+    debug_putc('\n');
+    debug_puts("VMM:PT-PA=");
+    debug_hex64(kernel_path.pt_pa);
+    debug_putc('\n');
+    debug_puts("VMM:TARGET-VA=");
+    debug_hex64(LESSON_VMM_TARGET_ADDRESS);
+    debug_putc('\n');
+    debug_puts("VMM:TARGET-PA=");
+    debug_hex64(first_page);
+    debug_putc('\n');
+
+    if (!vmm_map_single_4k(&kernel_path, LESSON_VMM_TARGET_ADDRESS, first_page)) {
+        debug_puts("VMM:LINK:FAIL\n");
+    } else {
+        const uint64_t pml4_index = VMM_PML4_INDEX(LESSON_VMM_TARGET_ADDRESS);
+        const uint64_t pdpt_index = VMM_PDPT_INDEX(LESSON_VMM_TARGET_ADDRESS);
+        const uint64_t pd_index = VMM_PD_INDEX(LESSON_VMM_TARGET_ADDRESS);
+        const uint64_t pt_index = VMM_PT_INDEX(LESSON_VMM_TARGET_ADDRESS);
+        const uint64_t active_cr3 = read_cr3();
+
+        debug_puts("VMM:PML4-INDEX=");
+        debug_hex64(pml4_index);
+        debug_putc('\n');
+        debug_puts("VMM:PDPT-INDEX=");
+        debug_hex64(pdpt_index);
+        debug_putc('\n');
+        debug_puts("VMM:PD-INDEX=");
+        debug_hex64(pd_index);
+        debug_putc('\n');
+        debug_puts("VMM:PT-INDEX=");
+        debug_hex64(pt_index);
+        debug_putc('\n');
+        debug_puts("VMM:PML4E=");
+        debug_hex64(kernel_path.pml4[pml4_index]);
+        debug_putc('\n');
+        debug_puts("VMM:PDPTE=");
+        debug_hex64(kernel_path.pdpt[pdpt_index]);
+        debug_putc('\n');
+        debug_puts("VMM:PDE=");
+        debug_hex64(kernel_path.pd[pd_index]);
+        debug_putc('\n');
+        debug_puts("VMM:PTE=");
+        debug_hex64(kernel_path.pt[pt_index]);
+        debug_putc('\n');
+        debug_puts("VMM:ACTIVE-CR3=");
+        debug_hex64(active_cr3);
+        debug_putc('\n');
+
+        const uint64_t table_flags = VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE;
+        const bool table_path_valid = kernel_path.pml4[pml4_index] == (kernel_path.pdpt_pa | table_flags) &&
+                                      kernel_path.pdpt[pdpt_index] == (kernel_path.pd_pa | table_flags) &&
+                                      kernel_path.pd[pd_index] == (kernel_path.pt_pa | table_flags) &&
+                                      kernel_path.pt[pt_index] == (first_page | table_flags) &&
+                                      (active_cr3 & VMM_PAGE_ADDRESS_MASK) != kernel_path.pml4_pa;
+
+        if (table_path_valid) {
+            debug_puts("VMM:ROOT:INACTIVE\n");
+            debug_puts("VMM:BUILD:OK\n");
+        } else {
+            debug_puts("VMM:BUILD:FAIL\n");
+        }
+    }
+
     debug_puts("PF:TRIGGER\n");
     *(volatile uint64_t *)(uintptr_t)LESSON_PAGE_FAULT_ADDRESS = UINT64_C(0x28);
 

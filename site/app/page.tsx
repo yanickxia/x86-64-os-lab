@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>页表施工前的异常安全网已经建立</h2>
-            <p>vector 14 已能进入 C；CR2、error code 与 saved RIP 会把错误地址、访问类型和故障指令分别留下来。</p>
+            <h2>第一条 kernel-owned 映射已经成形</h2>
+            <p>四个独立 frame 已经组成 PML4→PDPT→PD→PT 路径；entry 保存下一层 PA，HHDM pointer 只供 C 构造，active CR3 仍保持不变。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>#PF → CR2 + ERROR + RIP</code>
+            <code>VA INDICES → TABLE PAs → LEAF PA</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

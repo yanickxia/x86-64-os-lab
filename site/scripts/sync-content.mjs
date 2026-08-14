@@ -239,6 +239,14 @@ const lessonMeta = [
     summary: "在修改页表前安装 vector 14 安全网，用 CR2、error code 与 saved RIP 诊断一次可重复的 kernel page fault。",
     takeaway: "#PF → CR2 + ERROR + RIP",
   },
+  {
+    id: "29",
+    slug: "lesson-29",
+    phase: "虚拟内存",
+    status: "completed",
+    summary: "把四个 kernel-owned frames 连接成一条可检查的 PML4→PDPT→PD→PT 映射路径，暂不加载 CR3。",
+    takeaway: "VA INDICES → TABLE PAs → LEAF PA",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

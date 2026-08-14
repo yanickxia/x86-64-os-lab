@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>29<\/strong><span>节已完成/);
+  assert.match(html, /<strong>30<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?29(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?30(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /页表施工前的异常安全网已经建立/);
-  assert.match(html, /#PF → CR2 \+ ERROR \+ RIP/);
+  assert.match(html, /第一条 kernel-owned 映射已经成形/);
+  assert.match(html, /VA INDICES → TABLE PAs → LEAF PA/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -59,6 +59,7 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-26"/);
   assert.match(html, /href="\/lessons\/lesson-27"/);
   assert.match(html, /href="\/lessons\/lesson-28"/);
+  assert.match(html, /href="\/lessons\/lesson-29"/);
   assert.match(html, /href="\/reference"/);
   assert.match(html, /href="\/reference\/c"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
@@ -97,6 +98,11 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-27", /Higher Half Direct Map.*VA = HHDM offset \+ PA.*aliasing.*不是 512 页.*4096 bytes \/ 8 bytes.*2\^9.*整套页表不是只有一个页.*PML4.*PDPT.*PD page.*PT page.*512 words.*CR3.*预测修订.*原预测.*真实结果.*错误原因/is],
     ["/lessons/lesson-28", /Page Fault.*vector 14.*CR2.*error code.*saved RIP.*0x2.*non-present.*supervisor.*IRETQ.*page_fault_decode/is],
     ["/lessons/lesson-28", /不再换一种措辞重复作答.*地址空间 policy.*TLB invalidation.*预测修订/is],
+    ["/lessons/lesson-29", /PML4 → PDPT → PD → PT → frame/],
+    ["/lessons/lesson-29", /entry 中放 PA，不放 HHDM VA/],
+    ["/lessons/lesson-29", /indices: 0x24 \/ 0xd1 \/ 0xb3 \/ 0x189/],
+    ["/lessons/lesson-29", /entries: 0x2003 → 0x3003 → 0x4003 → 0x0003/],
+    ["/lessons/lesson-29", /VMM:ROOT:INACTIVE.*唯一新增的收束题/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
     ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],
