@@ -17,6 +17,7 @@ export function SiteHeader() {
           <Link href="/lessons">课程</Link>
           <Link href="/roadmap">路线图</Link>
           <Link href="/reference">汇编参考</Link>
+          <Link href="/reference/c">C 参考</Link>
         </nav>
       </div>
     </header>

@@ -99,7 +99,7 @@ const lessonRoutes = (await readdir(path.join(courseRoot, "docs")))
   .filter((name) => /^lesson-\d{2}\.md$/.test(name))
   .sort()
   .map((name) => `/lessons/${name.slice(0, -3)}`);
-const routes = ["/", "/lessons", ...lessonRoutes, "/roadmap", "/reference"];
+const routes = ["/", "/lessons", ...lessonRoutes, "/roadmap", "/reference", "/reference/c"];
 
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });

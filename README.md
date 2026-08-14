@@ -30,11 +30,11 @@ make check-tools
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
-当前已完成 [第 27 课：通过 HHDM 访问并清零物理页](docs/lesson-27.md)：已经建立 `PA → 可访问 VA → 已初始化 contents` 的证据；下一阶段会先建立异常安全网，再把 frame 组织成 kernel-owned page tables。
+当前已完成 [第 28 课：让 Page Fault 说清楚哪里错了](docs/lesson-28.md)：vector 14 已能进入 C，并用 `CR2 + error code + saved RIP` 留下可读证据。下一阶段会把 PMM frame 组织成 kernel-owned page tables。
 
 多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 
-常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)。
+常用基础参考：[NASM 与 x86 寄存器入门](docs/reference/assembly-basics.md)、[Freestanding C 与内核代码](docs/reference/c-basics.md)。
 
 
 

@@ -231,6 +231,14 @@ const lessonMeta = [
     summary: "请求 Limine HHDM offset，把 PMM 返回的 PA 转成可解引用 VA，并用非零哨兵证明完整 4 KiB frame 已被清零。",
     takeaway: "VA = HHDM offset + PA",
   },
+  {
+    id: "28",
+    slug: "lesson-28",
+    phase: "异常诊断",
+    status: "completed",
+    summary: "在修改页表前安装 vector 14 安全网，用 CR2、error code 与 saved RIP 诊断一次可重复的 kernel page fault。",
+    takeaway: "#PF → CR2 + ERROR + RIP",
+  },
 ];
 
 function titleFromMarkdown(markdown) {
@@ -256,6 +264,7 @@ const lessons = await Promise.all(
 
 const roadmap = await read("docs/roadmap.md");
 const reference = await read("docs/reference/assembly-basics.md");
+const cReference = await read("docs/reference/c-basics.md");
 
 const course = {
   title: "x86-64 OS Field Notes",
@@ -264,6 +273,7 @@ const course = {
   lessons,
   roadmap,
   reference,
+  cReference,
 };
 
 await mkdir(generatedDir, { recursive: true });

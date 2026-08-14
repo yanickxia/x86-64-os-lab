@@ -35,13 +35,13 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>28<\/strong><span>节已完成/);
+  assert.match(html, /<strong>29<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?28(?:<!-- -->)? 节/);
+  assert.match(html, /共 (?:<!-- -->)?29(?:<!-- -->)? 节/);
   assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /内核已经能访问自己的物理页/);
-  assert.match(html, /PA → HHDM VA → ZEROED FRAME/);
+  assert.match(html, /页表施工前的异常安全网已经建立/);
+  assert.match(html, /#PF → CR2 \+ ERROR \+ RIP/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -58,6 +58,9 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-25"/);
   assert.match(html, /href="\/lessons\/lesson-26"/);
   assert.match(html, /href="\/lessons\/lesson-27"/);
+  assert.match(html, /href="\/lessons\/lesson-28"/);
+  assert.match(html, /href="\/reference"/);
+  assert.match(html, /href="\/reference\/c"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
@@ -92,8 +95,11 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-25", /Limine bootloader.*boot protocol.*request.*response.*RDI.*memory map.*allocator.*cannot open source file.*make limine-deps.*inspect-limine-api.*提示 1/is],
     ["/lessons/lesson-26", /physical frame.*PMM.*VMM.*BOOTLOADER_RECLAIMABLE.*ownership.*PA 0.*pmm_init.*pmm_alloc_page/is],
     ["/lessons/lesson-27", /Higher Half Direct Map.*VA = HHDM offset \+ PA.*aliasing.*不是 512 页.*4096 bytes \/ 8 bytes.*2\^9.*整套页表不是只有一个页.*PML4.*PDPT.*PD page.*PT page.*512 words.*CR3.*预测修订.*原预测.*真实结果.*错误原因/is],
+    ["/lessons/lesson-28", /Page Fault.*vector 14.*CR2.*error code.*saved RIP.*0x2.*non-present.*supervisor.*IRETQ.*page_fault_decode/is],
+    ["/lessons/lesson-28", /不再换一种措辞重复作答.*地址空间 policy.*TLB invalidation.*预测修订/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
+    ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],
   ];
 
   for (const [pathname, expected] of routes) {
@@ -126,6 +132,9 @@ test("keeps Markdown as the canonical source", async () => {
 
   assert.match(generator, /docs\/\$\{meta\.slug\}\.md/);
   assert.match(generator, /notes\/note-\$\{meta\.id\}\.md/);
+  assert.match(generator, /docs\/reference\/assembly-basics\.md/);
+  assert.match(generator, /docs\/reference\/c-basics\.md/);
   assert.match(generated, /第 0 课：先认识实验机器/);
   assert.match(generated, /第 6 课：从内存遍历 NUL 结尾的字符串/);
+  assert.match(generated, /Freestanding C 与内核代码参考/);
 });

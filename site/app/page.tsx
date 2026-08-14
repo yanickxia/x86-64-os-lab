@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>内核已经能访问自己的物理页</h2>
-            <p>PMM 负责 frame ownership，Limine HHDM 提供可访问 mapping，kernel 再把完整 4 KiB contents 从非零哨兵清零；三层状态已经有了独立证据。</p>
+            <h2>页表施工前的异常安全网已经建立</h2>
+            <p>vector 14 已能进入 C；CR2、error code 与 saved RIP 会把错误地址、访问类型和故障指令分别留下来。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>PA → HHDM VA → ZEROED FRAME</code>
+            <code>#PF → CR2 + ERROR + RIP</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

@@ -4,11 +4,37 @@
 
 #include <limine.h>
 
+#include "faults.h"
 #include "hhdm.h"
 #include "pmm.h"
 
 #define HHDM_POISON UINT64_C(0xa5a55a5adeadbeef)
 #define PAGE_WORD_COUNT (PMM_PAGE_SIZE / sizeof(uint64_t))
+#define LESSON_PAGE_FAULT_ADDRESS UINT64_C(0x0000400000000000)
+#define IDT_ENTRY_COUNT 256
+
+struct idt_gate {
+    uint16_t offset_low;
+    uint16_t selector;
+    uint8_t ist;
+    uint8_t type_attributes;
+    uint16_t offset_middle;
+    uint32_t offset_high;
+    uint32_t reserved;
+} __attribute__((packed));
+
+struct idtr {
+    uint16_t limit;
+    uint64_t base;
+} __attribute__((packed));
+
+static struct idt_gate kernel_idt[IDT_ENTRY_COUNT] __attribute__((aligned(16)));
+
+extern void faults_idt_load(const struct idtr *descriptor);
+extern void page_fault_entry(void);
+
+__attribute__((noreturn))
+static void halt_forever(void);
 
 __attribute__((used, section(".limine_requests_start")))
 static volatile uint64_t limine_requests_start[] = LIMINE_REQUESTS_START_MARKER;
@@ -48,6 +74,36 @@ static void debug_hex64(uint64_t value) {
     for (int shift = 60; shift >= 0; shift -= 4) {
         debug_putc(digits[(value >> shift) & UINT64_C(0xf)]);
     }
+}
+
+static void idt_set_gate(uint8_t vector, void (*handler)(void)) {
+    const uintptr_t address = (uintptr_t)handler;
+
+    kernel_idt[vector] = (struct idt_gate){
+        .offset_low = (uint16_t)address,
+        .selector = 0x28,
+        .ist = 0,
+        .type_attributes = 0x8e,
+        .offset_middle = (uint16_t)(address >> 16),
+        .offset_high = (uint32_t)(address >> 32),
+        .reserved = 0,
+    };
+}
+
+static void page_faults_install(void) {
+    idt_set_gate(14, page_fault_entry);
+
+    const struct idtr descriptor = {
+        .limit = sizeof(kernel_idt) - 1,
+        .base = (uintptr_t)kernel_idt,
+    };
+    faults_idt_load(&descriptor);
+}
+
+static uint64_t read_cr2(void) {
+    uint64_t value;
+    __asm__ volatile("mov %%cr2, %0" : "=r"(value));
+    return value;
 }
 
 static bool usable_page_contains(const struct limine_memmap_response *response, uint64_t page) {
@@ -93,6 +149,51 @@ static bool page_is_zero(const uint64_t *page) {
     }
 
     return true;
+}
+
+__attribute__((noreturn))
+void page_fault_handler(uint64_t error_code, const struct interrupt_frame *frame) {
+    const uint64_t address = read_cr2();
+    struct page_fault_report report;
+
+    if (frame == NULL || !page_fault_decode(address, error_code, frame->rip, &report)) {
+        debug_puts("PF:DECODE:FAIL\n");
+        halt_forever();
+    }
+
+    debug_puts("PF:CR2=");
+    debug_hex64(report.address);
+    debug_putc('\n');
+    debug_puts("PF:ERROR=");
+    debug_hex64(report.error_code);
+    debug_putc('\n');
+    debug_puts("PF:RIP=");
+    debug_hex64(report.rip);
+    debug_putc('\n');
+    debug_puts("PF:PRESENT=");
+    debug_hex64(report.present);
+    debug_putc('\n');
+    debug_puts("PF:WRITE=");
+    debug_hex64(report.write);
+    debug_putc('\n');
+    debug_puts("PF:USER=");
+    debug_hex64(report.user);
+    debug_putc('\n');
+    debug_puts("PF:RSVD=");
+    debug_hex64(report.reserved_write);
+    debug_putc('\n');
+    debug_puts("PF:FETCH=");
+    debug_hex64(report.instruction_fetch);
+    debug_putc('\n');
+
+    if (report.address == LESSON_PAGE_FAULT_ADDRESS && report.error_code == PAGE_FAULT_WRITE &&
+        !report.present && report.write && !report.user && !report.reserved_write && !report.instruction_fetch) {
+        debug_puts("PF:DIAG:OK\n");
+    } else {
+        debug_puts("PF:DIAG:FAIL\n");
+    }
+
+    halt_forever();
 }
 
 static bool accept_limine_handoff(void) {
@@ -251,7 +352,14 @@ void limine_kernel_main(void) {
         debug_puts("HHDM:PAGE:OK\n");
     } else {
         debug_puts("HHDM:ZERO:FAIL\n");
+        halt_forever();
     }
 
+    page_faults_install();
+    debug_puts("PF:IDT:OK\n");
+    debug_puts("PF:TRIGGER\n");
+    *(volatile uint64_t *)(uintptr_t)LESSON_PAGE_FAULT_ADDRESS = UINT64_C(0x28);
+
+    debug_puts("PF:UNEXPECTED-RETURN\n");
     halt_forever();
 }

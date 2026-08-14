@@ -92,12 +92,16 @@ LIMINE_BOOT_EFI := build/limine/limine-binary/BOOTX64.EFI
 LIMINE_KERNEL_SRC := kernel/limine_main.c
 LIMINE_PMM_SRC := kernel/pmm.c
 LIMINE_HHDM_SRC := kernel/hhdm.c
-LIMINE_KERNEL_HEADERS := kernel/pmm.h kernel/hhdm.h
+LIMINE_FAULTS_SRC := kernel/faults.c
+LIMINE_FAULTS_ASM_SRC := kernel/faults_asm.asm
+LIMINE_KERNEL_HEADERS := kernel/pmm.h kernel/hhdm.h kernel/faults.h
 LIMINE_KERNEL_LINKER := kernel/limine_linker.ld
 LIMINE_KERNEL_OBJ := build/limine-main.o
 LIMINE_PMM_OBJ := build/limine-pmm.o
 LIMINE_HHDM_OBJ := build/limine-hhdm.o
-LIMINE_KERNEL_OBJS := $(LIMINE_KERNEL_OBJ) $(LIMINE_PMM_OBJ) $(LIMINE_HHDM_OBJ)
+LIMINE_FAULTS_OBJ := build/limine-faults.o
+LIMINE_FAULTS_ASM_OBJ := build/limine-faults-asm.o
+LIMINE_KERNEL_OBJS := $(LIMINE_KERNEL_OBJ) $(LIMINE_PMM_OBJ) $(LIMINE_HHDM_OBJ) $(LIMINE_FAULTS_OBJ) $(LIMINE_FAULTS_ASM_OBJ)
 LIMINE_KERNEL_ELF := build/limine-kernel.elf
 LIMINE_IMAGE := build/limine-os.img
 LIMINE_CONFIG := limine.conf
@@ -151,7 +155,7 @@ QEMU_BOOT_FLAGS := \
 .PHONY: check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
 .PHONY: limine-deps limine-kernel limine-image run-limine
 .PHONY: inspect-limine-api inspect-limine-handoff inspect-physical-pages inspect-hhdm-page
-.PHONY: check-limine-handoff check-physical-pages check-hhdm-page
+.PHONY: inspect-page-fault check-limine-handoff check-physical-pages check-hhdm-page check-page-fault
 
 check-tools:
 	@set -e; \
@@ -436,6 +440,14 @@ $(LIMINE_HHDM_OBJ): $(LIMINE_HHDM_SRC) $(LIMINE_KERNEL_HEADERS)
 	@mkdir -p build
 	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
 
+$(LIMINE_FAULTS_OBJ): $(LIMINE_FAULTS_SRC) $(LIMINE_KERNEL_HEADERS)
+	@mkdir -p build
+	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
+
+$(LIMINE_FAULTS_ASM_OBJ): $(LIMINE_FAULTS_ASM_SRC)
+	@mkdir -p build
+	@nasm -f elf64 -g -F dwarf -o $@ $<
+
 $(LIMINE_KERNEL_ELF): $(LIMINE_KERNEL_OBJS) $(LIMINE_KERNEL_LINKER)
 	@x86_64-elf-ld -nostdlib -static -z max-page-size=0x1000 --gc-sections -T $(LIMINE_KERNEL_LINKER) -o $@ $(LIMINE_KERNEL_OBJS)
 
@@ -502,6 +514,15 @@ inspect-hhdm-page: $(LIMINE_KERNEL_ELF) $(LIMINE_HEADER)
 	@printf '%s\n' '== linked HHDM symbols and retained request =='
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'hhdm_(request|prepare_page)'
 
+inspect-page-fault: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== lesson 28 page-fault evidence decoder =='
+	@sed -n '1,240p' kernel/faults.h
+	@sed -n '1,240p' kernel/faults.c
+	@printf '%s\n' '== provided IDT/#PF assembly bridge =='
+	@sed -n '1,240p' kernel/faults_asm.asm
+	@printf '%s\n' '== linked page-fault symbols =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'page_fault_(entry|handler|decode)|faults_idt_load|kernel_idt'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
@@ -513,3 +534,7 @@ check-physical-pages: $(LIMINE_IMAGE)
 check-hhdm-page: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-hhdm-page.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
+
+check-page-fault: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-page-fault.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
