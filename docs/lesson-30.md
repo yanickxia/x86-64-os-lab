@@ -36,6 +36,62 @@ VA 0x0000123456789000
 
 ## 本课只引入一个机制
 
+先用一句不带术语的话概括：
+
+> 新页表里目前只有第 29 课添加的一条 mapping，不能直接启用；必须先把当前正在使用的映射“借过来”，否则切换 `CR3` 后，kernel 会立刻失去自己的 code 和 stack。
+
+### 先把两张 PML4 分开
+
+当前同时存在两张根页表。
+
+第一张由 Limine 建立，`CR3` 正指向它，所以它是 **active PML4**：
+
+```text
+旧 PML4（Limine 提供，CPU 当前使用）
+├─ [0x100] → HHDM 与当前 stack 等映射
+├─ [0x1ff] → kernel code/data/IDT 等映射
+└─ 其他 Limine 建立的映射
+```
+
+第二张位于 PA `0x1000`，属于 kernel，但尚未 active。第 29 课只在里面建立了一条 custom path：
+
+```text
+新 PML4（kernel-owned，CPU 尚未使用）
+└─ [0x024] → PDPT → PD → PT → PA 0
+               对应 VA 0x0000123456789000
+```
+
+若现在直接执行 `write_cr3(0x1000)`，CPU 会开始使用几乎为空的新 PML4。新表中没有当前 kernel、stack 和 HHDM 的入口，因此可能连 `MOV CR3` 后的下一条指令都无法取得。
+
+### 本课要形成的结果
+
+本课先把旧 PML4 的 entries 复制到新 PML4，但跳过 `0x24`：
+
+```text
+新 PML4（复制完成后）
+├─ [0x024] → 保留第 29 课的 custom path
+├─ [0x100] → 借用 Limine 的 HHDM/stack subtree
+├─ [0x1ff] → 借用 Limine 的 kernel subtree
+└─ 其他 entries → 复制旧 PML4 的原值
+```
+
+这样加载新 `CR3` 后会同时拥有两类映射：
+
+```text
+新加入的能力：custom VA → PA 0
+继续存活的能力：kernel code、stack、HHDM、IDT 等旧映射
+```
+
+这里的“保留”非常具体。第 29 课已经写入：
+
+```text
+new_pml4[0x24] = 0x2003
+```
+
+如果连 index `0x24` 也从旧 PML4 复制，旧值可能是 `0`，就会把这条 custom path 擦掉。因此不是无条件复制 512 项，而是复制其余 511 项。
+
+### 你实现的函数中，三个参数分别是谁
+
 唯一由你实现的新机制是：**把 active PML4 的 entries 浅拷贝到新 PML4，同时保留新根中已经属于 custom path 的一个 entry**。
 
 ```c
@@ -44,9 +100,39 @@ bool vmm_clone_root_preserving_entry(uint64_t *destination,
                                      uint64_t preserved_index);
 ```
 
-加载 `CR3` 的 x86 inline assembly 已由脚手架提供；你不需要再记一遍 control-register 指令。
+| 参数 | 本课中的具体对象 |
+| --- | --- |
+| `destination` | 新 kernel-owned PML4 的 HHDM pointer |
+| `source` | `CR3` 当前指向的旧 PML4 的 HHDM pointer |
+| `preserved_index` | 不允许被覆盖的 custom index，本课是 `0x24` |
 
-本课不做：
+函数本质上只做：
+
+```text
+检查三个参数
+→ 遍历 0..511
+→ index == 0x24 时不写 destination
+→ 其他 511 项执行 destination[index] = source[index]
+→ 返回成功
+```
+
+加载 `CR3` 的 x86 inline assembly 已由脚手架提供；你不需要再记一遍 control-register 指令。你的函数只负责准备新 PML4 的内容，不负责激活它。
+
+### 本段术语速查
+
+| 术语 | 在本课中的意思 |
+| --- | --- |
+| active PML4 | `CR3` 当前选择、CPU 正在使用的旧根页表 |
+| new PML4 | PA `0x1000` 的 kernel-owned 根页表 |
+| custom path | 第 29 课建立的 `VA 0x0000123456789000 → PA 0` 路径 |
+| entry | PML4 中一个 64-bit 项，通常指向一张 PDPT |
+| shallow copy | 只复制 entry，两个 roots 仍指向同一批下级 tables |
+| bootstrap address space | 足以让 kernel 完成第一次接管的临时过渡地址空间 |
+
+下面这些名词**不是本课先修知识，也不会出现在必答题中**。它们只是说明当前实现的边界，可以先略过：
+
+<details>
+<summary>本课暂时不做的后续能力</summary>
 
 - 深拷贝 Limine 的所有 PDPT/PD/PT；
 - 回收 bootloader-owned page-table frames；
@@ -54,6 +140,8 @@ bool vmm_clone_root_preserving_entry(uint64_t *destination,
 - 每个 process 一个 address space；
 - PCID、global page 或精细 TLB shootdown；
 - kernel/user permissions、NX 和 W^X policy。
+
+</details>
 
 本课得到的是一个可运行的 **bootstrap address space**，不是最终完全独立的地址空间。
 
