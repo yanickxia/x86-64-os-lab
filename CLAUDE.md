@@ -52,6 +52,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - “实验前预测/推演”必须放在先修知识、机制正文和红灯成因说明之后，紧邻第一次实际运行之前；不能为了形式上“预测在前”而让学生在正文讲解前作答。预测之前的红灯小节只能展示输入、错误代码与判定规则，不运行实验，也不公布真实机器的精确结果。每一题都必须能从页面给出的源码、地址、工具规则与前置状态推出“输入 → 结论”，不能要求学生猜未展示的代码或工具隐藏行为。若无法推出，应补输入或移到实验后观察题。学生已经写下的错误答案必须原样保留，随后另做复盘。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
 - 同一个结论只设置一次必答题：若实验前预测已经要求解释，绿灯后只记录与预测不同的新证据，不再换一种措辞重复提问。观察题只考本课尚未回答的新不变量、证据边界或设计取舍；复习性问题放入可选回顾，不作为结课条件。
+- 绿灯命令的完整输出本身就是证据，不要求学习者把其中每个数值再次拆成字段抄录。后续每课必答项原则上不超过 2–3 个；若预测与结果一致，预测修订只写一行一致证据，只有差异才展开原因。
 - 每个里程碑结束时留一个干净提交。
 
 参考优先级：Intel SDM / AMD64 APM / x86-64 psABI 是权威源；OSDev Wiki 只作检索入口，寄存器位、描述符格式和异常语义必须回手册核对。
@@ -235,7 +236,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–29 课已结课，第 30 课红灯脚手架已开放。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造但尚不激活第一条 kernel-owned page-table path。第 30 课要求 shallow-copy active PML4 entries、保留 custom index `0x24`，然后由导师提供的 CR3 bridge 激活 kernel-owned root。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历旧路径页表后会更新 Accessed 位，写栈后还会更新大页的 Dirty 位。
+第 0–30 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造第一条 kernel-owned page-table path，第 30 课 shallow-copy active PML4 entries、保留 custom index `0x24`，并通过 CR3 bridge 激活 kernel-owned root。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历页表后可能更新 Accessed/Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 
@@ -293,6 +294,6 @@ npm run lint
 
 第 29 课已结课：复用第 28 课 `#PF` 安全网，以 PA `0x1000..0x4000` 的四个已清零 frames 作为 PML4/PDPT/PD/PT，把 VA `0x0000123456789000` 映射到 PA 0。`vmm_map_single_4k()` 连接四个 9-bit indices 对应的 parent/leaf entries；不分配 frame、不做 HHDM 转换、不加载 CR3。绿灯验证 indices `0x24/0xd1/0xb3/0x189`、entries `0x2003→0x3003→0x4003→0x3`、新 root 与 active CR3 不同；额外 pure-C checks 验证 NULL、四个 table PA、target PA 与 target VA 的非法输入均被拒绝。
 
-第 30 课当前为红灯：`vmm_clone_root_preserving_entry()` 固定返回 false，因此输出 `VMM:CLONE:FAIL`，不加载新 CR3，随后仍由旧 root 完成固定 `#PF` 诊断。导师已临时实现并撤回正确版本：复制 active PML4 的 511 个非 custom entries 后，CR3 从 Limine root 切到 PA `0x1000`；kernel/HHDM/stack root entries 保持，custom VA 与 HHDM alias 都观察到 `0x30c0ffee30c0ffee`，切换后的 `PF:DIAG:OK` 也通过。这里是 bootstrap shallow copy，borrowed lower tables 仍不归 kernel ownership。
+第 30 课已结课：`vmm_clone_root_preserving_entry()` 复制 active PML4 的 511 个非 custom entries，并保留 index `0x24`。CR3 从 Limine root 切到 PA `0x1000` 后，kernel/HHDM/stack root entries 保持，custom VA 与 HHDM alias 都观察到 `0x30c0ffee30c0ffee`，切换后的 `PF:DIAG:OK` 也通过。这里是 bootstrap shallow copy，borrowed lower tables 仍不归 kernel ownership，也不能被 PMM 回收。
 
 第 18 课起可保留简短的“OS 视角”、对照实现和配套阅读作为理解辅助，但不把展开性的横向比较当作苛刻完成条件。练习与批改聚焦本课 OS 机制、不变量和实际机器证据；需要选择数据结构时才要求说明直接影响正确性的取舍。

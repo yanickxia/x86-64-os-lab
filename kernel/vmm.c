@@ -19,12 +19,9 @@ bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_addres
         return false;
     }
 
-    if ((path->pml4_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
-        (path->pdpt_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
-        (path->pd_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
-        (path->pt_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
-        (physical_address & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
-        (virtual_address & (VMM_PAGE_SIZE - 1)) != 0) {
+    if ((path->pml4_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 || (path->pdpt_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (path->pd_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 || (path->pt_pa & ~VMM_PAGE_ADDRESS_MASK) != 0 ||
+        (physical_address & ~VMM_PAGE_ADDRESS_MASK) != 0 || (virtual_address & (VMM_PAGE_SIZE - 1)) != 0) {
         return false;
     }
 
@@ -39,15 +36,23 @@ bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_addres
 
 bool vmm_clone_root_preserving_entry(uint64_t *destination, const uint64_t *source, uint64_t preserved_index) {
     /*
-     * RED / TODO (lesson 30): copy the active PML4 into the new root without
-     * overwriting the one destination slot that already owns our custom path.
+     * Lesson 30 contract: copy the active PML4 into the new root without
+     * overwriting the destination slot that already owns our custom path.
      *
      * Reject NULL, an in-place copy, and an index outside one 512-entry PML4.
      * This helper only copies root entries; loading CR3 remains an x86 bridge
      * supplied by the lesson scaffold.
      */
-    (void)destination;
-    (void)source;
-    (void)preserved_index;
-    return false;
+
+    if (destination == NULL || source == NULL || destination == source || preserved_index >= VMM_ENTRY_COUNT) {
+        return false;
+    }
+
+    for (size_t i = 0; i < VMM_ENTRY_COUNT; i++) {
+        if (preserved_index != i) {
+            destination[i] = source[i];
+        }
+    }
+
+    return true;
 }

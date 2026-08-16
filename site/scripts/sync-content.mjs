@@ -251,7 +251,7 @@ const lessonMeta = [
     id: "30",
     slug: "lesson-30",
     phase: "虚拟内存",
-    status: "next",
+    status: "completed",
     summary: "浅拷贝 active PML4 的 live entries、保留 custom mapping slot，再切换 CR3 并验证 code、stack、HHDM、alias 与 #PF 全部存活。",
     takeaway: "BORROW LIVE SUBTREES → LOAD CR3",
   },

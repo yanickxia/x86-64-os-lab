@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>第一条 kernel-owned 映射已经成形</h2>
-            <p>四个独立 frame 已经组成 PML4→PDPT→PD→PT 路径；entry 保存下一层 PA，HHDM pointer 只供 C 构造，active CR3 仍保持不变。</p>
+            <h2>Kernel-owned PML4 已经接管地址翻译</h2>
+            <p>新 root 保留 custom path，并暂时借用 Limine 的 live subtrees；CR3 切换后 code、stack、HHDM、alias 与 #PF 安全网全部存活。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>VA INDICES → TABLE PAs → LEAF PA</code>
+            <code>BORROW LIVE SUBTREES → LOAD CR3</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>
