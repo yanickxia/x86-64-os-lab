@@ -157,9 +157,9 @@ QEMU_BOOT_FLAGS := \
 .PHONY: check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
 .PHONY: limine-deps limine-kernel limine-image run-limine
 .PHONY: inspect-limine-api inspect-limine-handoff inspect-physical-pages inspect-hhdm-page
-.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space
+.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space inspect-demand-page
 .PHONY: check-limine-handoff check-physical-pages check-hhdm-page check-page-fault
-.PHONY: check-kernel-page-table check-kernel-address-space
+.PHONY: check-kernel-page-table check-kernel-address-space check-demand-page
 
 check-tools:
 	@set -e; \
@@ -546,6 +546,14 @@ inspect-kernel-address-space: $(LIMINE_KERNEL_ELF)
 	@printf '%s\n' '== linked address-space symbols =='
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_(map_single_4k|clone_root_preserving_entry)'
 
+inspect-demand-page: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== lesson 31 demand-write policy and recovery bridge =='
+	@rg -n -A 42 'bool vmm_resolve_demand_write' kernel/vmm.c
+	@rg -n -A 30 '^page_fault_entry:' kernel/faults_asm.asm
+	@printf '%s\n' '== linked recovery symbols and INVLPG instruction =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_resolve_demand_write|page_fault_(entry|handler)'
+	@x86_64-elf-objdump -d -Mintel $(LIMINE_KERNEL_ELF) | rg 'invlpg|iretq'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
@@ -569,3 +577,7 @@ check-kernel-page-table: $(LIMINE_IMAGE)
 check-kernel-address-space: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-kernel-address-space.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
+
+check-demand-page: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-demand-page.zsh $(LIMINE_IMAGE) $(OVMF_CODE)

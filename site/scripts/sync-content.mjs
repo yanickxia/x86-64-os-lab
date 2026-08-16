@@ -255,6 +255,14 @@ const lessonMeta = [
     summary: "浅拷贝 active PML4 的 live entries、保留 custom mapping slot，再切换 CR3 并验证 code、stack、HHDM、alias 与 #PF 全部存活。",
     takeaway: "BORROW LIVE SUBTREES → LOAD CR3",
   },
+  {
+    id: "31",
+    slug: "lesson-31",
+    phase: "缺页恢复",
+    status: "next",
+    summary: "让一次 non-present supervisor write 进入 #PF，发布预留 frame 的 PTE，并通过 INVLPG + IRETQ 重试原 store。",
+    takeaway: "#PF → MAP → INVLPG → RETRY",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

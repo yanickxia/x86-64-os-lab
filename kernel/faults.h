@@ -32,6 +32,6 @@ struct page_fault_report {
 };
 
 bool page_fault_decode(uint64_t address, uint64_t error_code, uint64_t rip, struct page_fault_report *report);
-void page_fault_handler(uint64_t error_code, const struct interrupt_frame *frame) __attribute__((noreturn));
+void page_fault_handler(uint64_t error_code, const struct interrupt_frame *frame);
 
 #endif

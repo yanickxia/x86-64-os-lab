@@ -33,6 +33,8 @@ struct vmm_page_table_path {
     uint64_t *pt;
 };
 
+struct page_fault_report;
+
 bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_address, uint64_t physical_address);
 
 /*
@@ -40,5 +42,14 @@ bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_addres
  * destination entry that owns the lesson-29 mapping path.
  */
 bool vmm_clone_root_preserving_entry(uint64_t *destination, const uint64_t *source, uint64_t preserved_index);
+
+/*
+ * Resolve one deliberately narrow demand-mapping policy: a non-present,
+ * supervisor data write may claim one pre-reserved frame through an empty PTE.
+ */
+bool vmm_resolve_demand_write(const struct page_fault_report *report,
+                              uint64_t expected_virtual_page,
+                              uint64_t physical_address,
+                              uint64_t *pte);
 
 #endif

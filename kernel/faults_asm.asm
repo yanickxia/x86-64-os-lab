@@ -11,9 +11,10 @@ faults_idt_load:
     lidt [rdi]
     ret
 
-; #PF pushes an error code before RIP, CS, RFLAGS, RSP, SS. Preserve all GPRs
-; before entering C. The handler is diagnostic and never returns, so this
-; lesson deliberately needs no IRETQ recovery path.
+; For a same-privilege #PF, the CPU pushes error code, RIP, CS and RFLAGS.
+; RSP/SS are added only when the exception crosses privilege levels. Preserve
+; all GPRs before entering C. A recoverable handler returns here; IRETQ then
+; retries the saved RIP after the handler has repaired the mapping.
 page_fault_entry:
     cld
     push rax
@@ -36,8 +37,23 @@ page_fault_entry:
     lea rsi, [rsp + 16 * 8]
     sub rsp, 8
     call page_fault_handler
+    add rsp, 8
 
-.unexpected_return:
-    cli
-    hlt
-    jmp .unexpected_return
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdi
+    pop rsi
+    pop rbp
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    add rsp, 8
+    iretq

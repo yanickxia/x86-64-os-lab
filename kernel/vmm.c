@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include "faults.h"
+
 bool vmm_map_single_4k(struct vmm_page_table_path *path, uint64_t virtual_address, uint64_t physical_address) {
     /*
      * Lesson 29 contract: connect one already-cleared four-level path.
@@ -55,4 +57,21 @@ bool vmm_clone_root_preserving_entry(uint64_t *destination, const uint64_t *sour
     }
 
     return true;
+}
+
+bool vmm_resolve_demand_write(const struct page_fault_report *report,
+                              uint64_t expected_virtual_page,
+                              uint64_t physical_address,
+                              uint64_t *pte) {
+    /*
+     * RED / TODO (lesson 31): publish physical_address | PRESENT | WRITABLE
+     * only when this is the expected non-present supervisor write and the
+     * destination PTE is still empty. All invalid inputs must leave *pte
+     * unchanged. The interrupt return and TLB invalidation live elsewhere.
+     */
+    (void)report;
+    (void)expected_virtual_page;
+    (void)physical_address;
+    (void)pte;
+    return false;
 }

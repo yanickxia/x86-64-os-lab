@@ -285,3 +285,25 @@ flat binary 使用 `ORG` 为当前字节流提供地址假设；ELF 构建通常
 - [NASM ELF64 Output Format](https://www.nasm.us/doc/nasm10.html)
 - [GNU ld：Linker Scripts](https://sourceware.org/binutils/docs/ld/Scripts.html)
 - [System V ABI：ELF](https://refspecs.linuxfoundation.org/elf/gabi4+/contents.html)
+
+## 11. `INVLPG`：失效一个地址的 TLB 状态
+
+CPU 会缓存 virtual address 到 physical frame 的翻译。内核修改当前 active page table 后，需要按架构规则让旧缓存状态失效。本课程第 31 课使用：
+
+```asm
+invlpg [rax]
+```
+
+它让包含线性地址 `RAX` 的 page 对应 TLB entry 失效；下一次访问必须重新 page walk。操作数表达的是要失效的 **linear/virtual address**，不是 PTE 的地址，也不是目标 physical address。
+
+`INVLPG` 是特权指令。它只处理当前 CPU；多核内核修改共享地址空间时，还要通过 inter-processor interrupt 等机制要求其他 CPU 同步失效，这就是 TLB shootdown。
+
+GCC inline assembly 中可能写成 AT&T 形式：
+
+```c
+__asm__ volatile("invlpg (%0)" : : "r"((uintptr_t)virtual_address) : "memory");
+```
+
+本课程把这段架构胶水直接提供给学习者。需要掌握的是调用时机：**先发布有效 PTE，再失效对应 VA，最后才从异常返回。**
+
+参考：[Intel SDM Volume 2](https://cdrdv2.intel.com/v1/dl/getContent/671110) 的 `INVLPG—Invalidate TLB Entries`。

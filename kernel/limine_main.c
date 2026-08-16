@@ -13,7 +13,9 @@
 #define PAGE_WORD_COUNT (PMM_PAGE_SIZE / sizeof(uint64_t))
 #define LESSON_PAGE_FAULT_ADDRESS UINT64_C(0x0000400000000000)
 #define LESSON_VMM_TARGET_ADDRESS UINT64_C(0x0000123456789000)
+#define LESSON_DEMAND_ADDRESS (LESSON_VMM_TARGET_ADDRESS + VMM_PAGE_SIZE)
 #define LESSON_VMM_ALIAS_MARKER UINT64_C(0x30c0ffee30c0ffee)
+#define LESSON_DEMAND_MARKER UINT64_C(0x31d00d0031d00d00)
 #define IDT_ENTRY_COUNT 256
 
 struct idt_gate {
@@ -32,6 +34,16 @@ struct idtr {
 } __attribute__((packed));
 
 static struct idt_gate kernel_idt[IDT_ENTRY_COUNT] __attribute__((aligned(16)));
+
+struct demand_page_context {
+    bool armed;
+    uint64_t virtual_page;
+    uint64_t physical_address;
+    uint64_t *pte;
+};
+
+/* The assembly exception entry can change this state outside normal C control flow. */
+static volatile struct demand_page_context demand_page;
 
 extern void faults_idt_load(const struct idtr *descriptor);
 extern void page_fault_entry(void);
@@ -120,6 +132,11 @@ static void write_cr3(uint64_t value) {
     __asm__ volatile("mov %0, %%cr3" : : "r"(value) : "memory");
 }
 
+static void invalidate_page(uint64_t virtual_address) {
+    /* Architecture bridge: discard any cached translation for this one VA. */
+    __asm__ volatile("invlpg (%0)" : : "r"((uintptr_t)virtual_address) : "memory");
+}
+
 static uint64_t read_rsp(void) {
     uint64_t value;
     __asm__ volatile("mov %%rsp, %0" : "=r"(value));
@@ -171,7 +188,6 @@ static bool page_is_zero(const uint64_t *page) {
     return true;
 }
 
-__attribute__((noreturn))
 void page_fault_handler(uint64_t error_code, const struct interrupt_frame *frame) {
     const uint64_t address = read_cr2();
     struct page_fault_report report;
@@ -179,6 +195,37 @@ void page_fault_handler(uint64_t error_code, const struct interrupt_frame *frame
     if (frame == NULL || !page_fault_decode(address, error_code, frame->rip, &report)) {
         debug_puts("PF:DECODE:FAIL\n");
         halt_forever();
+    }
+
+    if (demand_page.armed) {
+        debug_puts("DEMAND:PF:CR2=");
+        debug_hex64(report.address);
+        debug_putc('\n');
+        debug_puts("DEMAND:PF:ERROR=");
+        debug_hex64(report.error_code);
+        debug_putc('\n');
+        debug_puts("DEMAND:PF:RIP=");
+        debug_hex64(report.rip);
+        debug_putc('\n');
+        debug_puts("DEMAND:PTE-BEFORE=");
+        debug_hex64(demand_page.pte == NULL ? UINT64_MAX : *demand_page.pte);
+        debug_putc('\n');
+
+        if (!vmm_resolve_demand_write(&report,
+                                      demand_page.virtual_page,
+                                      demand_page.physical_address,
+                                      demand_page.pte)) {
+            debug_puts("DEMAND:MAP:FAIL\n");
+            halt_forever();
+        }
+
+        demand_page.armed = false;
+        invalidate_page(demand_page.virtual_page);
+        debug_puts("DEMAND:PTE-AFTER=");
+        debug_hex64(*demand_page.pte);
+        debug_putc('\n');
+        debug_puts("DEMAND:MAP:OK\n");
+        return;
     }
 
     debug_puts("PF:CR2=");
@@ -388,14 +435,18 @@ void limine_kernel_main(void) {
         .pd = NULL,
         .pt = NULL,
     };
+    uint64_t demand_physical_page = PMM_NO_PAGE;
+    uint64_t *demand_hhdm_alias = NULL;
 
     if (!pmm_alloc_page(&allocator, &kernel_path.pdpt_pa) ||
         !pmm_alloc_page(&allocator, &kernel_path.pd_pa) ||
         !pmm_alloc_page(&allocator, &kernel_path.pt_pa) ||
+        !pmm_alloc_page(&allocator, &demand_physical_page) ||
         !hhdm_prepare_page(hhdm_response->offset, kernel_path.pml4_pa, &kernel_path.pml4) ||
         !hhdm_prepare_page(hhdm_response->offset, kernel_path.pdpt_pa, &kernel_path.pdpt) ||
         !hhdm_prepare_page(hhdm_response->offset, kernel_path.pd_pa, &kernel_path.pd) ||
-        !hhdm_prepare_page(hhdm_response->offset, kernel_path.pt_pa, &kernel_path.pt)) {
+        !hhdm_prepare_page(hhdm_response->offset, kernel_path.pt_pa, &kernel_path.pt) ||
+        !hhdm_prepare_page(hhdm_response->offset, demand_physical_page, &demand_hhdm_alias)) {
         debug_puts("VMM:FRAMES:FAIL\n");
         halt_forever();
     }
@@ -561,6 +612,71 @@ void limine_kernel_main(void) {
                 if (activation_valid) {
                     debug_puts("VMM:ALIAS:OK\n");
                     debug_puts("VMM:ACTIVATE:OK\n");
+
+                    uint64_t policy_probe_pte = 0;
+                    const struct page_fault_report policy_probe = {
+                        .address = LESSON_DEMAND_ADDRESS,
+                        .error_code = PAGE_FAULT_WRITE,
+                        .rip = 0,
+                        .present = false,
+                        .write = true,
+                        .user = false,
+                        .reserved_write = false,
+                        .instruction_fetch = false,
+                    };
+                    const uint64_t demand_pte_index = VMM_PT_INDEX(LESSON_DEMAND_ADDRESS);
+                    const uint64_t expected_demand_pte = demand_physical_page | VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE;
+                    const bool demand_policy_valid =
+                        vmm_resolve_demand_write(&policy_probe,
+                                                 LESSON_DEMAND_ADDRESS,
+                                                 demand_physical_page,
+                                                 &policy_probe_pte) &&
+                        policy_probe_pte == expected_demand_pte &&
+                        kernel_path.pt[demand_pte_index] == 0;
+
+                    if (!demand_policy_valid) {
+                        debug_puts("DEMAND:POLICY:FAIL\n");
+                    } else {
+                        debug_puts("DEMAND:POLICY:OK\n");
+                        debug_puts("DEMAND:VA=");
+                        debug_hex64(LESSON_DEMAND_ADDRESS);
+                        debug_putc('\n');
+                        debug_puts("DEMAND:PA=");
+                        debug_hex64(demand_physical_page);
+                        debug_putc('\n');
+                        debug_puts("DEMAND:PT-INDEX=");
+                        debug_hex64(demand_pte_index);
+                        debug_putc('\n');
+
+                        demand_page = (struct demand_page_context){
+                            .armed = true,
+                            .virtual_page = LESSON_DEMAND_ADDRESS,
+                            .physical_address = demand_physical_page,
+                            .pte = &kernel_path.pt[demand_pte_index],
+                        };
+
+                        debug_puts("DEMAND:TRIGGER\n");
+                        *(volatile uint64_t *)(uintptr_t)LESSON_DEMAND_ADDRESS = LESSON_DEMAND_MARKER;
+
+                        const uint64_t demand_virtual_value =
+                            *(volatile uint64_t *)(uintptr_t)LESSON_DEMAND_ADDRESS;
+                        const uint64_t demand_hhdm_value = *demand_hhdm_alias;
+
+                        debug_puts("DEMAND:VALUE-VA=");
+                        debug_hex64(demand_virtual_value);
+                        debug_putc('\n');
+                        debug_puts("DEMAND:VALUE-HHDM=");
+                        debug_hex64(demand_hhdm_value);
+                        debug_putc('\n');
+
+                        if (!demand_page.armed && demand_virtual_value == LESSON_DEMAND_MARKER &&
+                            demand_hhdm_value == LESSON_DEMAND_MARKER) {
+                            debug_puts("DEMAND:RESUME:OK\n");
+                        } else {
+                            debug_puts("DEMAND:RESUME:FAIL\n");
+                            halt_forever();
+                        }
+                    }
                 } else {
                     debug_puts("VMM:ACTIVATE:FAIL\n");
                     halt_forever();

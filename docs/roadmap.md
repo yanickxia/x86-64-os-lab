@@ -14,7 +14,7 @@
 
 第 20–24 课是自制 bootloader 的明确毕业阶段：依次完成多扇区加载、stage 1 / stage 2、E820 `boot_info`、ELF `PT_LOAD`、`.bss`、内核栈与 ABI handoff。第 24 课逐项取证并列出有意不实现的生产功能；第 25 课先介绍 Limine bootloader/protocol，再逐项映射自己的交接合同，并以高半 ELF + memory-map response 建立新内核基线。这样 Limine 是成熟实现的替换，而不是用来跳过未讲清的启动缺口；第 26 课起从物理页 ownership 正式进入 OS 主线。
 
-当前内存主线按状态边界推进：第 26 课建立 frame ownership，第 27 课建立 HHDM access 与 contents initialization，第 28 课建立 `#PF` 诊断，第 29 课只构造未激活的四级 mapping path。第 30 课以 shallow root clone 暂时借用 Limine 的 live subtrees，保留 custom slot 后切换 CR3，把“数据结构正确”和“CPU 已安全使用”分开验证；随后再收敛为可复用的 page-table walk/map API，并逐步替换 borrowed mappings。
+当前内存主线按状态边界推进：第 26 课建立 frame ownership，第 27 课建立 HHDM access 与 contents initialization，第 28 课建立 `#PF` 诊断，第 29 课只构造未激活的四级 mapping path。第 30 课以 shallow root clone 暂时借用 Limine 的 live subtrees，保留 custom slot 后切换 CR3，把“数据结构正确”和“CPU 已安全使用”分开验证；第 31 课再让一次 non-present write 经 `#PF → publish PTE → INVLPG → IRETQ` 恢复，建立按需映射的最小闭环。随后收敛为可复用的 page-table walk/map API，并逐步替换 borrowed mappings。
 
 默认节奏是每周 6-8 小时，共约 20-24 周。实际进度以“能证明掌握”为准，不追赶日历。
 
