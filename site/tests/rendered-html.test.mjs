@@ -114,7 +114,7 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-31", /demand paging.*pre-reserved frame.*producer.*consumer.*observer.*INVLPG.*IRETQ/is],
     ["/lessons/lesson-31", /UD2 仍然非法.*store 本身合法.*保留 RIP.*重新执行/is],
     ["/lessons/lesson-31", /只回答这一题.*不需要预测 PA、RIP 或完整日志.*唯一新增的解释题/is],
-    ["/lessons/lesson-31", /课中追问汇总.*pte.*\*pte.*saved.*RIP.*同一条 store/is],
+    ["/lessons/lesson-31", /课中追问汇总.*faulting address.*向下对齐.*0x18a.*vmm_resolve_demand_write.*失败分支/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
     ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],

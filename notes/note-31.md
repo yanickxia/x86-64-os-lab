@@ -78,16 +78,26 @@ INVLPG 针对包含该线性地址的 page 失效 TLB entry。与重载 CR3 相�
 
 ## 课中追问汇总
 
-### 1. `pte` 和 `*pte` 有什么区别？
+<!-- source: sidechat:01a00eba-5d0e-74a3-af0e-f46cd22b1c98 -->
 
-- `pte` 是指向页表项的指针，也就是“PTE 放在哪里”。前面排除 `pte == NULL` 后，`pte != 0` 必然成立。
-- `*pte` 是该地址中保存的 64-bit 页表项内容，也就是“PTE 现在是什么”。本课必须检查 `*pte == 0`，避免覆盖已经存在的 mapping 或软件状态。
+### 1. 为什么 faulting address 向下对齐后要等于 `expected_virtual_page`？
 
-### 2. 不修改 saved `RIP`，为什么不是跳到下一条指令？
+- `report->address` 来自 `CR2`，表示真正发生访问的字节地址；它可能落在一页中的任意 offset，并不一定恰好是页首。
+- `expected_virtual_page` 表示内核事先允许按需建立映射的那一整页，所以它必须是 4 KiB 对齐的页首地址。
+- `report->address & ~(VMM_PAGE_SIZE - 1)` 会清掉低 12-bit page offset。对齐后的结果相等，表示 fault 确实发生在获准处理的那一页，而不是别的地址。
+- 本实验恰好向页首 `0x000012345678a000` 写入，但用“页身份”比较，才能覆盖该页内的所有合法 offset。
 
-- CPU 产生 fault 时保存的是 faulting store 的 `RIP`。`IRETQ` 恢复这个值，不会替软件自动加上指令长度。
-- 因此 handler 修好 PTE 后保留 saved `RIP`，CPU 会重试同一条 store；只有 handler 主动修改 saved `RIP`，才会跳到别处。
-- 这也解释了本课第一次修正为什么必要：`UD2` 的原因不能消失，而缺页的原因可以通过 mapping 消失。
+### 2. 触发写入的地址是故意选择的吗？它对应哪个 index？
+
+- 是。`LESSON_DEMAND_ADDRESS` 被定义为上一课目标地址再加一页：`0x0000123456789000 + 0x1000 = 0x000012345678a000`。
+- 两个地址共享相同的 PML4、PDPT 和 PD 路径，只有 PT index 从 `0x189` 变为相邻的 `0x18a`。这样可以复用已经建立的上三级页表，只把新的 leaf PTE 留为 0。
+- 内核先为它预留 physical frame，并把 VA、PA 和 `&pt[0x18a]` 放入 `demand_page`；随后对该 VA 的 store 才会稳定地产生本课预期的 non-present write fault。
+
+### 3. `vmm_resolve_demand_write()` 的实现检查结果
+
+- 当前实现的方向正确，并已通过 `make check-demand-page`：先拒绝空指针、未对齐的 expected VA 和非法 PA，再确认目标 PTE 为空、fault 属于预期页且 error code 恰为 `PAGE_FAULT_WRITE`。
+- 所有失败分支都发生在写 PTE 之前，因此不会破坏原 entry；成功分支最后才发布 `physical_address | PRESENT | WRITABLE`。
+- 这里的函数只负责判断策略并写入一个 PTE。`demand_page.armed = false`、`INVLPG` 和异常返回后的指令重试由外层 page-fault handler 负责。
 
 ## 仍然不清楚的问题
 
