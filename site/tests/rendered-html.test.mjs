@@ -35,12 +35,12 @@ test("renders the current course homepage", async () => {
   const html = await response.text();
   assert.match(html, /从复位向量/);
   assert.match(html, /BOOT TRACE/);
-  assert.match(html, /<strong>31<\/strong><span>节已完成/);
+  assert.match(html, /<strong>32<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
   assert.match(html, /共 (?:<!-- -->)?32(?:<!-- -->)? 节/);
-  assert.match(html, /NEXT CHECKPOINT/);
-  assert.match(html, /下一步：(?:<!-- -->)?缺页恢复/);
+  assert.match(html, /MILESTONE REACHED/);
+  assert.match(html, /第一次缺页恢复已经闭环/);
   assert.match(html, /#PF → MAP → INVLPG → RETRY/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
@@ -68,7 +68,7 @@ test("renders the current course homepage", async () => {
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
-  assert.doesNotMatch(html, /MILESTONE REACHED/);
+  assert.doesNotMatch(html, /NEXT CHECKPOINT/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 

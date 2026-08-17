@@ -30,7 +30,7 @@ make check-tools
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
-当前已完成 [第 30 课：切换到 kernel-owned PML4](docs/lesson-30.md)：新 root 保留 custom path，借用 Limine 的 live subtrees 后由 CR3 激活；code、stack、HHDM、alias 与 `#PF` 安全网均有机器证据。现在进入 [第 31 课：让 `#PF` 修复一次按需映射](docs/lesson-31.md)，把异常诊断推进为“补 PTE、失效 TLB、返回并重试原指令”的恢复闭环。
+当前已完成 [第 31 课：让 `#PF` 修复一次按需映射](docs/lesson-31.md)：一次 non-present supervisor write 经 handler 补上 PTE、`INVLPG` 失效单页 TLB 状态，再由 `IRETQ` 返回并重试原 store；目标 VA 与 HHDM alias 最终观察到同一个 marker。
 
 多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 

@@ -259,7 +259,7 @@ const lessonMeta = [
     id: "31",
     slug: "lesson-31",
     phase: "缺页恢复",
-    status: "next",
+    status: "completed",
     summary: "让一次 non-present supervisor write 进入 #PF，发布预留 frame 的 PTE，并通过 INVLPG + IRETQ 重试原 store。",
     takeaway: "#PF → MAP → INVLPG → RETRY",
   },

@@ -64,14 +64,31 @@ bool vmm_resolve_demand_write(const struct page_fault_report *report,
                               uint64_t physical_address,
                               uint64_t *pte) {
     /*
-     * RED / TODO (lesson 31): publish physical_address | PRESENT | WRITABLE
+     * Lesson 31 contract: publish physical_address | PRESENT | WRITABLE
      * only when this is the expected non-present supervisor write and the
      * destination PTE is still empty. All invalid inputs must leave *pte
      * unchanged. The interrupt return and TLB invalidation live elsewhere.
      */
-    (void)report;
-    (void)expected_virtual_page;
-    (void)physical_address;
-    (void)pte;
-    return false;
+    if (report == NULL || pte == NULL || (expected_virtual_page & (VMM_PAGE_SIZE - 1)) != 0 ||
+        (physical_address & ~VMM_PAGE_ADDRESS_MASK) != 0) {
+        return false;
+    }
+
+    if (*pte != 0) {
+        return false;
+    }
+
+    const uint64_t fault_page = report->address & ~(VMM_PAGE_SIZE - 1);
+
+    if (fault_page != expected_virtual_page) {
+        return false;
+    }
+
+    if (report->error_code != PAGE_FAULT_WRITE) {
+        return false;
+    }
+
+    *pte = physical_address | VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE;
+
+    return true;
 }
