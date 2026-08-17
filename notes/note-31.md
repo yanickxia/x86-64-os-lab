@@ -76,6 +76,19 @@ INVLPG 针对包含该线性地址的 page 失效 TLB entry。与重载 CR3 相�
 
 > 导师修订：关键差别不是“能不能运行缺页操作”。第 19 课的 `UD2` 本身永远非法，环境无法把它修好，只能推进 saved `RIP` 跳过；本课的 store 本身合法，失败原因只是 PTE 缺失。写 PTE 修复 page-table mapping，`INVLPG` 丢弃该 VA 可能残留的翻译缓存状态，随后保留 saved `RIP` 才能让原 store 正确重试。
 
+## 课中追问汇总
+
+### 1. `pte` 和 `*pte` 有什么区别？
+
+- `pte` 是指向页表项的指针，也就是“PTE 放在哪里”。前面排除 `pte == NULL` 后，`pte != 0` 必然成立。
+- `*pte` 是该地址中保存的 64-bit 页表项内容，也就是“PTE 现在是什么”。本课必须检查 `*pte == 0`，避免覆盖已经存在的 mapping 或软件状态。
+
+### 2. 不修改 saved `RIP`，为什么不是跳到下一条指令？
+
+- CPU 产生 fault 时保存的是 faulting store 的 `RIP`。`IRETQ` 恢复这个值，不会替软件自动加上指令长度。
+- 因此 handler 修好 PTE 后保留 saved `RIP`，CPU 会重试同一条 store；只有 handler 主动修改 saved `RIP`，才会跳到别处。
+- 这也解释了本课第一次修正为什么必要：`UD2` 的原因不能消失，而缺页的原因可以通过 mapping 消失。
+
 ## 仍然不清楚的问题
 
 -
