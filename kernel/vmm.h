@@ -11,6 +11,7 @@
 
 #define VMM_PAGE_PRESENT UINT64_C(1)
 #define VMM_PAGE_WRITABLE (UINT64_C(1) << 1)
+#define VMM_PAGE_HUGE (UINT64_C(1) << 7)
 
 #define VMM_PML4_INDEX(address) (((address) >> 39) & VMM_INDEX_MASK)
 #define VMM_PDPT_INDEX(address) (((address) >> 30) & VMM_INDEX_MASK)
@@ -51,5 +52,14 @@ bool vmm_resolve_demand_write(const struct page_fault_report *report,
                               uint64_t expected_virtual_page,
                               uint64_t physical_address,
                               uint64_t *pte);
+
+/*
+ * Follow one existing 4 KiB page-table path from a physical root address.
+ * On success, publish the address of the leaf PTE itself; that PTE may be 0.
+ */
+bool vmm_walk_to_pte(uint64_t root_physical_address,
+                     uint64_t hhdm_offset,
+                     uint64_t virtual_address,
+                     uint64_t **pte);
 
 #endif

@@ -157,9 +157,9 @@ QEMU_BOOT_FLAGS := \
 .PHONY: check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
 .PHONY: limine-deps limine-kernel limine-image run-limine
 .PHONY: inspect-limine-api inspect-limine-handoff inspect-physical-pages inspect-hhdm-page
-.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space inspect-demand-page
+.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space inspect-demand-page inspect-page-table-walk
 .PHONY: check-limine-handoff check-physical-pages check-hhdm-page check-page-fault
-.PHONY: check-kernel-page-table check-kernel-address-space check-demand-page
+.PHONY: check-kernel-page-table check-kernel-address-space check-demand-page check-page-table-walk
 
 check-tools:
 	@set -e; \
@@ -554,6 +554,14 @@ inspect-demand-page: $(LIMINE_KERNEL_ELF)
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_resolve_demand_write|page_fault_(entry|handler)'
 	@x86_64-elf-objdump -d -Mintel $(LIMINE_KERNEL_ELF) | rg 'invlpg|iretq'
 
+inspect-page-table-walk: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== lesson 32 reusable 4 KiB page-table walker =='
+	@rg -n -A 45 'bool vmm_walk_to_pte' kernel/vmm.c
+	@printf '%s\n' '== runtime producer and observer =='
+	@rg -n -A 48 'uint64_t \*walked_target_pte' kernel/limine_main.c
+	@printf '%s\n' '== linked walker symbol =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_walk_to_pte'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
@@ -581,3 +589,7 @@ check-kernel-address-space: $(LIMINE_IMAGE)
 check-demand-page: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-demand-page.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
+
+check-page-table-walk: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-page-table-walk.zsh $(LIMINE_IMAGE) $(OVMF_CODE)

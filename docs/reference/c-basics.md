@@ -209,6 +209,47 @@ page + 1;
 
 最后一个合法元素是 `page[511]`；`page[512]` 已经越过这一个 4 KiB frame。
 
+### 4.4 output parameter 与二级指针
+
+函数有时既要返回成功/失败，又要把一个结果交给 caller。本课程使用 `bool + output parameter`：
+
+```c
+bool pmm_alloc_page(struct pmm_allocator *allocator,
+                    uint64_t *physical_address);
+```
+
+caller 把局部变量的地址传入；函数通过 `*physical_address` 写回一个 `uint64_t`。
+
+如果要写回的结果本身也是 pointer，就需要 pointer-to-pointer：
+
+```c
+bool vmm_walk_to_pte(uint64_t root_pa,
+                     uint64_t hhdm_offset,
+                     uint64_t virtual_address,
+                     uint64_t **pte);
+
+uint64_t *leaf = NULL;
+bool found = vmm_walk_to_pte(root_pa, hhdm_offset, address, &leaf);
+```
+
+从变量名向外读：
+
+| 表达式 | 类型/含义 |
+| --- | --- |
+| `leaf` | `uint64_t *`，PTE 在哪里 |
+| `&leaf` | `uint64_t **`，caller 的 pointer 变量在哪里 |
+| `*pte = some_pointer` | 函数把找到的 pointer 写回 `leaf` |
+| `**pte` | 经过两次解引用，读取或修改最终的 64-bit PTE 内容 |
+
+失败路径通常不应修改 output。先用局部变量完成全部验证，成功时最后一次性发布：
+
+```c
+*pte = &table[index];
+return true;
+```
+
+二级指针本身不保证安全。函数仍必须验证 `pte != NULL`；caller 也只能在返回 `true` 后使用写回的 pointer。
+
 ## 5. `sizeof`、数组和边界
 
 `sizeof(expression)` 返回表达式类型占用的 bytes；通常不会求值该表达式：

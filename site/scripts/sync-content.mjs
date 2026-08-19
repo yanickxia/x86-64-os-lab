@@ -263,6 +263,14 @@ const lessonMeta = [
     summary: "让一次 non-present supervisor write 进入 #PF，发布预留 frame 的 PTE，并通过 INVLPG + IRETQ 重试原 store。",
     takeaway: "#PF → MAP → INVLPG → RETRY",
   },
+  {
+    id: "32",
+    slug: "lesson-32",
+    phase: "虚拟内存",
+    status: "next",
+    summary: "从 active root PA 与任意 VA 出发，经 HHDM 沿已有父级定位 mapped 或 empty leaf PTE，为通用 map/unmap 收敛接口。",
+    takeaway: "ROOT PA → HHDM → LEAF PTE*",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

@@ -38,10 +38,10 @@ test("renders the current course homepage", async () => {
   assert.match(html, /<strong>32<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?32(?:<!-- -->)? 节/);
-  assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /第一次缺页恢复已经闭环/);
-  assert.match(html, /#PF → MAP → INVLPG → RETRY/);
+  assert.match(html, /共 (?:<!-- -->)?33(?:<!-- -->)? 节/);
+  assert.match(html, /NEXT CHECKPOINT/);
+  assert.match(html, /下一步：.*虚拟内存/s);
+  assert.match(html, /ROOT PA → HHDM → LEAF PTE\*/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -62,13 +62,14 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-29"/);
   assert.match(html, /href="\/lessons\/lesson-30"/);
   assert.match(html, /href="\/lessons\/lesson-31"/);
+  assert.match(html, /href="\/lessons\/lesson-32"/);
   assert.match(html, /href="\/reference"/);
   assert.match(html, /href="\/reference\/c"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
-  assert.doesNotMatch(html, /NEXT CHECKPOINT/);
+  assert.doesNotMatch(html, /MILESTONE REACHED/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -115,6 +116,9 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-31", /UD2 仍然非法.*store 本身合法.*保留 RIP.*重新执行/is],
     ["/lessons/lesson-31", /只回答这一题.*不需要预测 PA、RIP 或完整日志.*唯一新增的解释题/is],
     ["/lessons/lesson-31", /课中追问汇总.*faulting address.*向下对齐.*0x18a.*vmm_resolve_demand_write.*失败分支/is],
+    ["/lessons/lesson-32", /software page-table walker.*root PA.*HHDM.*leaf PTE.*parent path.*VMM_PAGE_HUGE/is],
+    ["/lessons/lesson-32", /PT\[0x189\].*PT\[0x18a\].*返回.*true.*pte == 0.*Accessed.*Dirty/is],
+    ["/lessons/lesson-32", /只回答这一题.*不需要重算四个 index.*唯一新增的解释题.*uint64_t \*\*pte/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
     ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],
@@ -155,4 +159,5 @@ test("keeps Markdown as the canonical source", async () => {
   assert.match(generated, /第 0 课：先认识实验机器/);
   assert.match(generated, /第 6 课：从内存遍历 NUL 结尾的字符串/);
   assert.match(generated, /Freestanding C 与内核代码参考/);
+  assert.match(generated, /output parameter 与二级指针/);
 });

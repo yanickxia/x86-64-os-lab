@@ -98,6 +98,7 @@ make check-page-fault # vector 14 → C，检查 CR2/error code/saved RIP 诊断
 make check-kernel-page-table # 四个 kernel-owned frames → 一条未激活的 4 KiB mapping path
 make check-kernel-address-space # shallow-copy live root entries → 加载 kernel-owned CR3
 make check-demand-page # #PF 发布一个预留 frame 的 PTE，INVLPG 后 IRETQ 重试原 store
+make check-page-table-walk # 从 active root PA 与 VA 软件遍历到 mapped/empty leaf PTE
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -123,6 +124,7 @@ make inspect-page-fault  # 查看 #PF decoder API 与导师提供的 IDT/汇编 
 make inspect-kernel-page-table # 查看第 29 课 VMM API、四级 index/entry 合同与链接符号
 make inspect-kernel-address-space # 查看第 30 课 root clone API 与 CR3 bridge
 make inspect-demand-page # 查看第 31 课 demand-write policy、异常返回桥与 INVLPG/IRETQ
+make inspect-page-table-walk # 查看第 32 课 walker API、runtime observer 与 linked symbol
 make qemu-reset          # 终端 A：QEMU 停在第一条指令前
 make inspect-reset       # 终端 B：GDB 连上去读复位状态
 make qemu-boot           # 终端 A：停在 reset，配合 inspect-boot

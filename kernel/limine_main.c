@@ -626,6 +626,42 @@ void limine_kernel_main(void) {
                     };
                     const uint64_t demand_pte_index = VMM_PT_INDEX(LESSON_DEMAND_ADDRESS);
                     const uint64_t expected_demand_pte = demand_physical_page | VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE;
+                    uint64_t *walked_target_pte = NULL;
+                    uint64_t *walked_demand_pte = NULL;
+                    const uint64_t active_root_pa = read_cr3() & VMM_PAGE_ADDRESS_MASK;
+                    const bool walk_valid =
+                        vmm_walk_to_pte(active_root_pa,
+                                        hhdm_response->offset,
+                                        LESSON_VMM_TARGET_ADDRESS,
+                                        &walked_target_pte) &&
+                        vmm_walk_to_pte(active_root_pa,
+                                        hhdm_response->offset,
+                                        LESSON_DEMAND_ADDRESS,
+                                        &walked_demand_pte) &&
+                        walked_target_pte == &kernel_path.pt[pt_index] &&
+                        walked_demand_pte == &kernel_path.pt[demand_pte_index] &&
+                        (*walked_target_pte &
+                         (VMM_PAGE_ADDRESS_MASK | VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE)) ==
+                            (first_page | VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE) &&
+                        *walked_demand_pte == 0;
+
+                    debug_puts("VMM:WALK:ROOT-PA=");
+                    debug_hex64(active_root_pa);
+                    debug_putc('\n');
+                    debug_puts("VMM:WALK:MAPPED-VA=");
+                    debug_hex64(LESSON_VMM_TARGET_ADDRESS);
+                    debug_putc('\n');
+                    debug_puts("VMM:WALK:MAPPED-PTE=");
+                    debug_hex64(walked_target_pte == NULL ? UINT64_MAX : *walked_target_pte);
+                    debug_putc('\n');
+                    debug_puts("VMM:WALK:EMPTY-VA=");
+                    debug_hex64(LESSON_DEMAND_ADDRESS);
+                    debug_putc('\n');
+                    debug_puts("VMM:WALK:EMPTY-PTE=");
+                    debug_hex64(walked_demand_pte == NULL ? UINT64_MAX : *walked_demand_pte);
+                    debug_putc('\n');
+                    debug_puts(walk_valid ? "VMM:WALK:OK\n" : "VMM:WALK:RED\n");
+
                     const bool demand_policy_valid =
                         vmm_resolve_demand_write(&policy_probe,
                                                  LESSON_DEMAND_ADDRESS,

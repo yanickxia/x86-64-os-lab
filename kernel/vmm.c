@@ -92,3 +92,24 @@ bool vmm_resolve_demand_write(const struct page_fault_report *report,
 
     return true;
 }
+
+bool vmm_walk_to_pte(uint64_t root_physical_address,
+                     uint64_t hhdm_offset,
+                     uint64_t virtual_address,
+                     uint64_t **pte) {
+    /*
+     * RED / TODO (lesson 32): mirror the CPU's four-level index path in
+     * software. Parent entries must be PRESENT and must describe another
+     * table rather than a huge leaf. Convert each next-table PA through the
+     * supplied HHDM offset, and publish &pt[VMM_PT_INDEX(virtual_address)].
+     *
+     * Reaching the PT is success even when the leaf PTE itself is zero. Do
+     * not allocate, modify entries, invalidate the TLB, or publish *pte on a
+     * failed walk.
+     */
+    (void)root_physical_address;
+    (void)hhdm_offset;
+    (void)virtual_address;
+    (void)pte;
+    return false;
+}
