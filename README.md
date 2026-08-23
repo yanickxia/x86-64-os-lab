@@ -31,7 +31,7 @@ make check-tools
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
-当前已完成 [第 31 课：让 `#PF` 修复一次按需映射](docs/lesson-31.md)：一次 non-present supervisor write 经 handler 补上 PTE、`INVLPG` 失效单页 TLB 状态，再由 `IRETQ` 返回并重试原 store；目标 VA 与 HHDM alias 最终观察到同一个 marker。下一步是 [第 32 课：让内核自己找到 leaf PTE](docs/lesson-32.md)，把固定 page-table path 收敛成从 active root 与任意 VA 定位 leaf slot 的 reusable walker。
+当前已完成 [第 32 课：让内核自己找到 leaf PTE](docs/lesson-32.md)：kernel 能从 active root PA 与任意 VA 出发，经 HHDM 沿已有 parent path 定位 mapped 或 empty leaf slot；下一步会在 parent 缺失时分配、清零并连接 table frame，形成通用 4 KiB mapper。
 
 多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 

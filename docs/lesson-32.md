@@ -2,14 +2,18 @@
 
 ## 先修知识
 
-开始前只需要保留第 29–31 课的四个结论：
+第 31.5 课已经把 PA、VA、PMM、VMM、PTE 与 HHDM 串成一条完整地址链。本课把其中最后一个查找缺口实现成独立 API：kernel 开始具备从 root PA 和目标 VA 自己定位 leaf PTE slot 的能力。
+
+本课的 runtime observer 会使用这个 walker 取证；第 31 课的 `#PF` handler 仍暂时使用提前保存的 `demand_page.pte`。也就是说，本课先建立可复用的查找机制，后续 mapper 和 fault policy 再逐步接入它。
+
+开始前只需要保留第 29–31.5 课的四个结论：
 
 1. `CR3` 的 address bits 给出 active PML4 的 **physical address**；C 要通过 HHDM 才能解引用页表页。
 2. 4 KiB mapping 依次使用 VA 的 PML4、PDPT、PD、PT 四个 9-bit index。
 3. parent entry 保存下一张 table 的 PA 与 flags；leaf PTE 保存最终 frame PA 与 flags。
 4. 第 31 课的 handler 能修改一个已知 PTE，但这个 PTE pointer 是实验驱动提前保存的，不是 handler 根据 fault VA 找出来的。
 
-本课不再要求重算四个既有 index，也不新增控制寄存器或汇编。需要回顾 C 指针时，可先看 [Freestanding C 与内核代码参考：output parameter 与二级指针](/reference/c)。
+如果其中任何一句仍混淆，先回到[第 31.5 课：把 PA、VA、PMM、VMM、PTE 与 HHDM 串成一条线](/lessons/lesson-31.5)。本课不再要求重算四个既有 index，也不新增控制寄存器或汇编。需要回顾 C 指针时，可看 [Freestanding C 与内核代码参考：output parameter 与二级指针](/reference/c)。
 
 ## 本课只引入一个机制
 

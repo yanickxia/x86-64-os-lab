@@ -70,12 +70,12 @@ export default function Home() {
         <section className="next-up shell">
           <div>
             <p className="eyebrow">MILESTONE REACHED</p>
-            <h2>第一次缺页恢复已经闭环</h2>
-            <p>一次 non-present write 经 #PF 补上 PTE、失效单页 TLB 状态，再由 IRETQ 返回并重试原 store。</p>
+            <h2>内核已经能自行定位 leaf PTE</h2>
+            <p>从 active root PA 与目标 VA 出发，经 HHDM 沿现有 parent path 找到 mapped 或 empty leaf slot。</p>
           </div>
           <div className="next-up__meta">
             <StatusBadge status="completed" />
-            <code>#PF → MAP → INVLPG → RETRY</code>
+            <code>ROOT PA → HHDM → LEAF PTE*</code>
             <Link href="/roadmap">查看后续路线 →</Link>
           </div>
         </section>

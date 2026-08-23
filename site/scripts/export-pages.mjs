@@ -96,7 +96,7 @@ async function validatePage(route) {
 }
 
 const lessonRoutes = (await readdir(path.join(courseRoot, "docs")))
-  .filter((name) => /^lesson-\d{2}\.md$/.test(name))
+  .filter((name) => /^lesson-\d{2}(?:\.\d+)?\.md$/.test(name))
   .sort()
   .map((name) => `/lessons/${name.slice(0, -3)}`);
 const routes = ["/", "/lessons", ...lessonRoutes, "/roadmap", "/reference", "/reference/c"];

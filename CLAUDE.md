@@ -242,7 +242,7 @@ npm run lint
 
 ## 当前进度
 
-第 0–31 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造第一条 kernel-owned page-table path，第 30 课 shallow-copy active PML4 entries、保留 custom index `0x24`，并通过 CR3 bridge 激活 kernel-owned root。第 31 课完成 `vmm_resolve_demand_write()`：真实路径使用预留 frame，经 `#PF → publish PTE → INVLPG → IRETQ` 重试原 store。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历页表后可能更新 Accessed/Dirty 位。
+第 0–32 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造第一条 kernel-owned page-table path，第 30 课 shallow-copy active PML4 entries、保留 custom index `0x24`，并通过 CR3 bridge 激活 kernel-owned root。第 31 课完成 `vmm_resolve_demand_write()`：真实路径使用预留 frame，经 `#PF → publish PTE → INVLPG → IRETQ` 重试原 store。第 31.5 课统一 PA、VA、PMM、VMM、PTE 与 HHDM 的地址模型；第 32 课完成 `vmm_walk_to_pte()`，能从 root PA 与任意 VA 经 HHDM 定位 mapped 或 empty leaf slot。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历页表后可能更新 Accessed/Dirty 位。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 

@@ -59,9 +59,7 @@ bool vmm_clone_root_preserving_entry(uint64_t *destination, const uint64_t *sour
     return true;
 }
 
-bool vmm_resolve_demand_write(const struct page_fault_report *report,
-                              uint64_t expected_virtual_page,
-                              uint64_t physical_address,
+bool vmm_resolve_demand_write(const struct page_fault_report *report, uint64_t expected_virtual_page, uint64_t physical_address,
                               uint64_t *pte) {
     /*
      * Lesson 31 contract: publish physical_address | PRESENT | WRITABLE
@@ -93,23 +91,61 @@ bool vmm_resolve_demand_write(const struct page_fault_report *report,
     return true;
 }
 
-bool vmm_walk_to_pte(uint64_t root_physical_address,
-                     uint64_t hhdm_offset,
-                     uint64_t virtual_address,
-                     uint64_t **pte) {
+bool vmm_walk_to_pte(uint64_t root_physical_address, uint64_t hhdm_offset, uint64_t virtual_address, uint64_t **pte) {
     /*
-     * RED / TODO (lesson 32): mirror the CPU's four-level index path in
-     * software. Parent entries must be PRESENT and must describe another
-     * table rather than a huge leaf. Convert each next-table PA through the
-     * supplied HHDM offset, and publish &pt[VMM_PT_INDEX(virtual_address)].
+     * Lesson 32 contract: mirror the CPU's four-level index path in software.
+     * Parent entries must be PRESENT and must describe another table rather
+     * than a huge leaf. Convert each next-table PA through the supplied HHDM
+     * offset, and publish &pt[VMM_PT_INDEX(virtual_address)].
      *
      * Reaching the PT is success even when the leaf PTE itself is zero. Do
      * not allocate, modify entries, invalidate the TLB, or publish *pte on a
      * failed walk.
      */
-    (void)root_physical_address;
-    (void)hhdm_offset;
-    (void)virtual_address;
-    (void)pte;
-    return false;
+    if (pte == NULL) {
+        return false;
+    }
+
+    if ((root_physical_address & ~VMM_PAGE_ADDRESS_MASK) != 0) {
+        return false;
+    }
+
+    if (root_physical_address > UINT64_MAX - hhdm_offset) {
+        return false;
+    }
+
+    uint64_t *table = (uint64_t *)(uintptr_t)(hhdm_offset + root_physical_address);
+    uint64_t entry = table[VMM_PML4_INDEX(virtual_address)];
+    if ((entry & VMM_PAGE_PRESENT) == 0 || (entry & VMM_PAGE_HUGE) != 0) {
+        return false;
+    }
+
+    uint64_t next_table_pa = entry & VMM_PAGE_ADDRESS_MASK;
+    if (next_table_pa > UINT64_MAX - hhdm_offset) {
+        return false;
+    }
+    table = (uint64_t *)(uintptr_t)(hhdm_offset + next_table_pa);
+    entry = table[VMM_PDPT_INDEX(virtual_address)];
+    if ((entry & VMM_PAGE_PRESENT) == 0 || (entry & VMM_PAGE_HUGE) != 0) {
+        return false;
+    }
+
+    next_table_pa = entry & VMM_PAGE_ADDRESS_MASK;
+    if (next_table_pa > UINT64_MAX - hhdm_offset) {
+        return false;
+    }
+    table = (uint64_t *)(uintptr_t)(hhdm_offset + next_table_pa);
+    entry = table[VMM_PD_INDEX(virtual_address)];
+    if ((entry & VMM_PAGE_PRESENT) == 0 || (entry & VMM_PAGE_HUGE) != 0) {
+        return false;
+    }
+
+    next_table_pa = entry & VMM_PAGE_ADDRESS_MASK;
+    if (next_table_pa > UINT64_MAX - hhdm_offset) {
+        return false;
+    }
+    table = (uint64_t *)(uintptr_t)(hhdm_offset + next_table_pa);
+
+    *pte = &table[VMM_PT_INDEX(virtual_address)];
+    return true;
 }
