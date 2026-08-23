@@ -38,10 +38,10 @@ test("renders the current course homepage", async () => {
   assert.match(html, /<strong>34<\/strong><span>节已完成/);
   assert.match(html, /PML4 ROOT/);
   assert.match(html, /CS64 ENTRY/);
-  assert.match(html, /共 (?:<!-- -->)?34(?:<!-- -->)? 节/);
-  assert.match(html, /MILESTONE REACHED/);
-  assert.match(html, /内核已经能自行定位 leaf PTE/);
-  assert.match(html, /ROOT PA → HHDM → LEAF PTE\*/);
+  assert.match(html, /共 (?:<!-- -->)?35(?:<!-- -->)? 节/);
+  assert.match(html, /NEXT CHECKPOINT/);
+  assert.match(html, /下一步：.*虚拟内存/s);
+  assert.match(html, /ALLOC → ZERO → LINK → PUBLISH/);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -64,13 +64,14 @@ test("renders the current course homepage", async () => {
   assert.match(html, /href="\/lessons\/lesson-31"/);
   assert.match(html, /href="\/lessons\/lesson-31\.5"/);
   assert.match(html, /href="\/lessons\/lesson-32"/);
+  assert.match(html, /href="\/lessons\/lesson-33"/);
   assert.match(html, /href="\/reference"/);
   assert.match(html, /href="\/reference\/c"/);
   assert.match(html, /SECTION (?:<!-- -->)?01.*SECTION (?:<!-- -->)?02.*SECTION (?:<!-- -->)?03.*SECTION (?:<!-- -->)?04.*SECTION (?:<!-- -->)?05.*SECTION (?:<!-- -->)?06/s);
   assert.match(html, /从复位到程序控制流.*进入 x86-64 Long Mode.*加载、交接与 ELF.*启动复盘与理解检验.*C 内核与 Bootloader 毕业.*Limine 与内核主线/s);
   assert.equal((html.match(/<details[^>]+class="lesson-section/g) ?? []).length, 6);
   assert.match(html, /<details[^>]+class="lesson-section is-current"[^>]+open=""/);
-  assert.doesNotMatch(html, /NEXT CHECKPOINT/);
+  assert.doesNotMatch(html, /MILESTONE REACHED/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/);
 });
 
@@ -121,6 +122,8 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-32", /software page-table walker.*root PA.*HHDM.*leaf PTE.*parent path.*VMM_PAGE_HUGE/is],
     ["/lessons/lesson-32", /PT\[0x189\].*PT\[0x18a\].*返回.*true.*pte == 0.*Accessed.*Dirty/is],
     ["/lessons/lesson-32", /只回答这一题.*不需要重算四个 index.*唯一新增的解释题.*uint64_t \*\*pte/is],
+    ["/lessons/lesson-33", /data frame.*table frames.*PML4\[0x25\].*PDPT、PD、PT.*3.*PRESENT.*publication/is],
+    ["/lessons/lesson-33", /只回答这一题.*为什么不是四张.*唯一新增的解释题.*最后才.*PRESENT=1/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
     ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],

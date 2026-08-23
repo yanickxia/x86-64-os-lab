@@ -8,14 +8,17 @@
 #include "hhdm.h"
 #include "pmm.h"
 #include "vmm.h"
+#include "vmm_mapper.h"
 
 #define HHDM_POISON UINT64_C(0xa5a55a5adeadbeef)
 #define PAGE_WORD_COUNT (PMM_PAGE_SIZE / sizeof(uint64_t))
 #define LESSON_PAGE_FAULT_ADDRESS UINT64_C(0x0000400000000000)
 #define LESSON_VMM_TARGET_ADDRESS UINT64_C(0x0000123456789000)
 #define LESSON_DEMAND_ADDRESS (LESSON_VMM_TARGET_ADDRESS + VMM_PAGE_SIZE)
+#define LESSON_MAPPER_ADDRESS (LESSON_VMM_TARGET_ADDRESS + (UINT64_C(1) << 39))
 #define LESSON_VMM_ALIAS_MARKER UINT64_C(0x30c0ffee30c0ffee)
 #define LESSON_DEMAND_MARKER UINT64_C(0x31d00d0031d00d00)
+#define LESSON_MAPPER_MARKER UINT64_C(0x33a44a0033a44a00)
 #define IDT_ENTRY_COUNT 256
 
 struct idt_gate {
@@ -661,6 +664,93 @@ void limine_kernel_main(void) {
                     debug_hex64(walked_demand_pte == NULL ? UINT64_MAX : *walked_demand_pte);
                     debug_putc('\n');
                     debug_puts(walk_valid ? "VMM:WALK:OK\n" : "VMM:WALK:RED\n");
+
+                    uint64_t mapper_physical_page = PMM_NO_PAGE;
+                    uint64_t *mapper_hhdm_alias = NULL;
+                    struct vmm_map_result mapper_result = {
+                        .pte = NULL,
+                        .allocated_table_count = UINT64_MAX,
+                    };
+                    const uint64_t mapper_pml4_index = VMM_PML4_INDEX(LESSON_MAPPER_ADDRESS);
+                    const uint64_t mapper_parent_before = kernel_path.pml4[mapper_pml4_index];
+
+                    if (!pmm_alloc_page(&allocator, &mapper_physical_page) ||
+                        !hhdm_prepare_page(hhdm_response->offset, mapper_physical_page, &mapper_hhdm_alias)) {
+                        debug_puts("VMM:MAP4K:INFRA:FAIL\n");
+                        halt_forever();
+                    }
+
+                    const uint64_t mapper_free_before = allocator.free_pages;
+                    const bool mapper_called =
+                        walk_valid &&
+                        vmm_map_page_4k(&allocator,
+                                        active_root_pa,
+                                        hhdm_response->offset,
+                                        LESSON_MAPPER_ADDRESS,
+                                        mapper_physical_page,
+                                        &mapper_result);
+                    uint64_t *mapper_walked_pte = NULL;
+                    const bool mapper_structure_valid =
+                        mapper_called && mapper_parent_before == 0 && mapper_result.allocated_table_count == 3 &&
+                        allocator.free_pages == mapper_free_before - 3 && mapper_result.pte != NULL &&
+                        *mapper_result.pte ==
+                            (mapper_physical_page | VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE) &&
+                        vmm_walk_to_pte(active_root_pa,
+                                        hhdm_response->offset,
+                                        LESSON_MAPPER_ADDRESS,
+                                        &mapper_walked_pte) &&
+                        mapper_walked_pte == mapper_result.pte;
+
+                    uint64_t mapper_virtual_value = 0;
+                    uint64_t mapper_hhdm_value = 0;
+                    if (mapper_structure_valid) {
+                        invalidate_page(LESSON_MAPPER_ADDRESS);
+                        *(volatile uint64_t *)(uintptr_t)LESSON_MAPPER_ADDRESS = LESSON_MAPPER_MARKER;
+                        mapper_virtual_value = *(volatile uint64_t *)(uintptr_t)LESSON_MAPPER_ADDRESS;
+                        mapper_hhdm_value = *mapper_hhdm_alias;
+                    }
+
+                    debug_puts("VMM:MAP4K:VA=");
+                    debug_hex64(LESSON_MAPPER_ADDRESS);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:PA=");
+                    debug_hex64(mapper_physical_page);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:PML4-INDEX=");
+                    debug_hex64(mapper_pml4_index);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:PARENT-BEFORE=");
+                    debug_hex64(mapper_parent_before);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:FREE-BEFORE=");
+                    debug_hex64(mapper_free_before);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:FREE-AFTER=");
+                    debug_hex64(allocator.free_pages);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:TABLES=");
+                    debug_hex64(mapper_result.allocated_table_count);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:PTE=");
+                    debug_hex64(mapper_result.pte == NULL ? UINT64_MAX : *mapper_result.pte);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:VALUE-VA=");
+                    debug_hex64(mapper_virtual_value);
+                    debug_putc('\n');
+                    debug_puts("VMM:MAP4K:VALUE-HHDM=");
+                    debug_hex64(mapper_hhdm_value);
+                    debug_putc('\n');
+
+                    const bool mapper_valid = mapper_structure_valid &&
+                                              mapper_virtual_value == LESSON_MAPPER_MARKER &&
+                                              mapper_hhdm_value == LESSON_MAPPER_MARKER;
+                    if (mapper_valid) {
+                        debug_puts("VMM:MAP4K:OK\n");
+                    } else if (!mapper_called) {
+                        debug_puts("VMM:MAP4K:RED\n");
+                    } else {
+                        debug_puts("VMM:MAP4K:FAIL\n");
+                    }
 
                     const bool demand_policy_valid =
                         vmm_resolve_demand_write(&policy_probe,

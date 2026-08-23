@@ -279,6 +279,16 @@ const lessonMeta = [
     summary: "从 active root PA 与任意 VA 出发，经 HHDM 沿已有父级定位 mapped 或 empty leaf PTE，为通用 map/unmap 收敛接口。",
     takeaway: "ROOT PA → HHDM → LEAF PTE*",
   },
+  {
+    id: "33",
+    slug: "lesson-33",
+    phase: "虚拟内存",
+    status: "next",
+    summary:
+      "复用已有 parent tables，并在首个缺层处从 PMM 分配、经 HHDM 清零和连接剩余层级，" +
+      "最后发布 4 KiB leaf mapping。",
+    takeaway: "ALLOC → ZERO → LINK → PUBLISH",
+  },
 ];
 
 function titleFromMarkdown(markdown) {

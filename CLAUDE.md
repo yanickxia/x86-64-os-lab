@@ -99,6 +99,7 @@ make check-kernel-page-table # 四个 kernel-owned frames → 一条未激活的
 make check-kernel-address-space # shallow-copy live root entries → 加载 kernel-owned CR3
 make check-demand-page # #PF 发布一个预留 frame 的 PTE，INVLPG 后 IRETQ 重试原 store
 make check-page-table-walk # 从 active root PA 与 VA 软件遍历到 mapped/empty leaf PTE
+make check-vmm-mapper # 缺失 parent 时分配、清零、连接 table pages，再发布 4 KiB mapping
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -125,6 +126,7 @@ make inspect-kernel-page-table # 查看第 29 课 VMM API、四级 index/entry �
 make inspect-kernel-address-space # 查看第 30 课 root clone API 与 CR3 bridge
 make inspect-demand-page # 查看第 31 课 demand-write policy、异常返回桥与 INVLPG/IRETQ
 make inspect-page-table-walk # 查看第 32 课 walker API、runtime observer 与 linked symbol
+make inspect-vmm-mapper # 查看第 33 课 allocating mapper API、ownership observer 与 linked symbol
 make qemu-reset          # 终端 A：QEMU 停在第一条指令前
 make inspect-reset       # 终端 B：GDB 连上去读复位状态
 make qemu-boot           # 终端 A：停在 reset，配合 inspect-boot
@@ -243,6 +245,11 @@ npm run lint
 ## 当前进度
 
 第 0–32 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造第一条 kernel-owned page-table path，第 30 课 shallow-copy active PML4 entries、保留 custom index `0x24`，并通过 CR3 bridge 激活 kernel-owned root。第 31 课完成 `vmm_resolve_demand_write()`：真实路径使用预留 frame，经 `#PF → publish PTE → INVLPG → IRETQ` 重试原 store。第 31.5 课统一 PA、VA、PMM、VMM、PTE 与 HHDM 的地址模型；第 32 课完成 `vmm_walk_to_pte()`，能从 root PA 与任意 VA 经 HHDM 定位 mapped 或 empty leaf slot。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历页表后可能更新 Accessed/Dirty 位。
+
+第 33 课脚手架已建立，当前保持红灯：`vmm_map_page_4k()` 需要复用已有 parents，
+在第一个 zero parent 后从 PMM 分配剩余 table frames、经 HHDM 清零、先连接 private child path，
+最后发布 `PRESENT` parent。目标 VA 使用空的 `PML4[0x25]`，绿灯应只分配 PDPT、PD、PT 三张 table pages，
+并由 active VA/HHDM alias 证明最终 mapping。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 

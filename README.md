@@ -31,7 +31,10 @@ make check-tools
 
 然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
-当前已完成 [第 32 课：让内核自己找到 leaf PTE](docs/lesson-32.md)：kernel 能从 active root PA 与任意 VA 出发，经 HHDM 沿已有 parent path 定位 mapped 或 empty leaf slot；下一步会在 parent 缺失时分配、清零并连接 table frame，形成通用 4 KiB mapper。
+当前已完成 [第 32 课：让内核自己找到 leaf PTE](docs/lesson-32.md)：kernel 能从 active root PA 与任意 VA 出发，
+经 HHDM 沿已有 parent path 定位 mapped 或 empty leaf slot。
+下一步是 [第 33 课：缺哪一级，就创建哪一级](docs/lesson-33.md)，
+把 PMM、HHDM 与 walker 收敛成通用 4 KiB mapper。
 
 多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 

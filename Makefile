@@ -95,7 +95,8 @@ LIMINE_HHDM_SRC := kernel/hhdm.c
 LIMINE_FAULTS_SRC := kernel/faults.c
 LIMINE_FAULTS_ASM_SRC := kernel/faults_asm.asm
 LIMINE_VMM_SRC := kernel/vmm.c
-LIMINE_KERNEL_HEADERS := kernel/pmm.h kernel/hhdm.h kernel/faults.h kernel/vmm.h
+LIMINE_VMM_MAPPER_SRC := kernel/vmm_mapper.c
+LIMINE_KERNEL_HEADERS := kernel/pmm.h kernel/hhdm.h kernel/faults.h kernel/vmm.h kernel/vmm_mapper.h
 LIMINE_KERNEL_LINKER := kernel/limine_linker.ld
 LIMINE_KERNEL_OBJ := build/limine-main.o
 LIMINE_PMM_OBJ := build/limine-pmm.o
@@ -103,7 +104,15 @@ LIMINE_HHDM_OBJ := build/limine-hhdm.o
 LIMINE_FAULTS_OBJ := build/limine-faults.o
 LIMINE_FAULTS_ASM_OBJ := build/limine-faults-asm.o
 LIMINE_VMM_OBJ := build/limine-vmm.o
-LIMINE_KERNEL_OBJS := $(LIMINE_KERNEL_OBJ) $(LIMINE_PMM_OBJ) $(LIMINE_HHDM_OBJ) $(LIMINE_FAULTS_OBJ) $(LIMINE_FAULTS_ASM_OBJ) $(LIMINE_VMM_OBJ)
+LIMINE_VMM_MAPPER_OBJ := build/limine-vmm-mapper.o
+LIMINE_KERNEL_OBJS := \
+	$(LIMINE_KERNEL_OBJ) \
+	$(LIMINE_PMM_OBJ) \
+	$(LIMINE_HHDM_OBJ) \
+	$(LIMINE_FAULTS_OBJ) \
+	$(LIMINE_FAULTS_ASM_OBJ) \
+	$(LIMINE_VMM_OBJ) \
+	$(LIMINE_VMM_MAPPER_OBJ)
 LIMINE_KERNEL_ELF := build/limine-kernel.elf
 LIMINE_IMAGE := build/limine-os.img
 LIMINE_CONFIG := limine.conf
@@ -157,9 +166,10 @@ QEMU_BOOT_FLAGS := \
 .PHONY: check-kernel-entry check-kernel-elf check-c-kernel check-exception check-bootloader-graduation
 .PHONY: limine-deps limine-kernel limine-image run-limine
 .PHONY: inspect-limine-api inspect-limine-handoff inspect-physical-pages inspect-hhdm-page
-.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space inspect-demand-page inspect-page-table-walk
+.PHONY: inspect-page-fault inspect-kernel-page-table inspect-kernel-address-space
+.PHONY: inspect-demand-page inspect-page-table-walk inspect-vmm-mapper
 .PHONY: check-limine-handoff check-physical-pages check-hhdm-page check-page-fault
-.PHONY: check-kernel-page-table check-kernel-address-space check-demand-page check-page-table-walk
+.PHONY: check-kernel-page-table check-kernel-address-space check-demand-page check-page-table-walk check-vmm-mapper
 
 check-tools:
 	@set -e; \
@@ -456,6 +466,10 @@ $(LIMINE_VMM_OBJ): $(LIMINE_VMM_SRC) $(LIMINE_KERNEL_HEADERS)
 	@mkdir -p build
 	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
 
+$(LIMINE_VMM_MAPPER_OBJ): $(LIMINE_VMM_MAPPER_SRC) $(LIMINE_KERNEL_HEADERS)
+	@mkdir -p build
+	@x86_64-elf-gcc $(LIMINE_CFLAGS) -I build/limine/include -c -o $@ $<
+
 $(LIMINE_KERNEL_ELF): $(LIMINE_KERNEL_OBJS) $(LIMINE_KERNEL_LINKER)
 	@x86_64-elf-ld -nostdlib -static -z max-page-size=0x1000 --gc-sections -T $(LIMINE_KERNEL_LINKER) -o $@ $(LIMINE_KERNEL_OBJS)
 
@@ -562,6 +576,15 @@ inspect-page-table-walk: $(LIMINE_KERNEL_ELF)
 	@printf '%s\n' '== linked walker symbol =='
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_walk_to_pte'
 
+inspect-vmm-mapper: $(LIMINE_KERNEL_ELF)
+	@printf '%s\n' '== lesson 33 allocating 4 KiB mapper =='
+	@sed -n '1,220p' kernel/vmm_mapper.h
+	@sed -n '1,300p' kernel/vmm_mapper.c
+	@printf '%s\n' '== runtime ownership and alias observer =='
+	@rg -n -A 90 'struct vmm_map_result mapper_result' kernel/limine_main.c
+	@printf '%s\n' '== linked mapper symbol =='
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_map_page_4k'
+
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-limine-handoff.zsh $(LIMINE_IMAGE) $(LIMINE_KERNEL_ELF) $(OVMF_CODE)
@@ -593,3 +616,7 @@ check-demand-page: $(LIMINE_IMAGE)
 check-page-table-walk: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)
 	@zsh scripts/check-page-table-walk.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
+
+check-vmm-mapper: $(LIMINE_IMAGE)
+	@test -f $(OVMF_CODE)
+	@zsh scripts/check-vmm-mapper.zsh $(LIMINE_IMAGE) $(OVMF_CODE)
