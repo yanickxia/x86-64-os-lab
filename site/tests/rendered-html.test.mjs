@@ -41,7 +41,8 @@ test("renders the current course homepage", async () => {
   assert.match(html, /共 (?:<!-- -->)?35(?:<!-- -->)? 节/);
   assert.match(html, /NEXT CHECKPOINT/);
   assert.match(html, /下一步：.*虚拟内存/s);
-  assert.match(html, /ALLOC → ZERO → LINK → PUBLISH/);
+  assert.match(html, /CREATE → REUSE → UNMAP/);
+  assert.match(html, /完整能力.*少量强相关机制/s);
   assert.match(html, /href="\/lessons\/lesson-12"/);
   assert.match(html, /href="\/lessons\/lesson-13"/);
   assert.match(html, /href="\/lessons\/lesson-14"/);
@@ -122,8 +123,10 @@ test("renders lesson, roadmap, and reference routes", async () => {
     ["/lessons/lesson-32", /software page-table walker.*root PA.*HHDM.*leaf PTE.*parent path.*VMM_PAGE_HUGE/is],
     ["/lessons/lesson-32", /PT\[0x189\].*PT\[0x18a\].*返回.*true.*pte == 0.*Accessed.*Dirty/is],
     ["/lessons/lesson-32", /只回答这一题.*不需要重算四个 index.*唯一新增的解释题.*uint64_t \*\*pte/is],
-    ["/lessons/lesson-33", /data frame.*table frames.*PML4\[0x25\].*PDPT、PD、PT.*3.*PRESENT.*publication/is],
-    ["/lessons/lesson-33", /只回答这一题.*为什么不是四张.*唯一新增的解释题.*最后才.*PRESENT=1/is],
+    ["/lessons/lesson-33", /mapping lifecycle.*create.*reuse.*unmap.*TLB.*ownership/is],
+    ["/lessons/lesson-33", /PML4\[0x25\].*PDPT、PD、PT.*3.*相邻.*0.*leaf.*free_pages/is],
+    ["/lessons/lesson-33", /两个解释题.*最后才.*PRESENT=1.*INVLPG.*caller/is],
+    ["/roadmap", /章节粒度.*完整 OS 能力.*90–150 分钟.*第一个用户程序/is],
     ["/roadmap", /20-24 周/],
     ["/reference", /RAX.*EAX.*AX.*AH.*AL/is],
     ["/reference/c", /freestanding.*uintptr_t.*sizeof.*const.*volatile.*output parameter.*GCC attributes/is],

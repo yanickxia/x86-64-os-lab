@@ -12,8 +12,9 @@
 
 ## 学习规则
 
-- 每课只引入一个主要机制。
-- 每课在练习前列出先修知识，并讲清本课新增的最小语法与机器模型。
+- 启动基础可以按单一机器机制拆分；进入 OS 主线后，每章围绕一个完整能力组合 2–4 个强相关机制。
+- 整合章只保留一个贯穿实验和最多 2–3 个必答项，预计 90–150 分钟；超过这个负担才继续拆章。
+- 每章在练习前列出先修知识，并讲清新增语法、状态边界与各机制如何协作。
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
 - 写代码前先预测机器状态和输出。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
@@ -33,8 +34,8 @@ make check-tools
 
 当前已完成 [第 32 课：让内核自己找到 leaf PTE](docs/lesson-32.md)：kernel 能从 active root PA 与任意 VA 出发，
 经 HHDM 沿已有 parent path 定位 mapped 或 empty leaf slot。
-下一步是 [第 33 课：缺哪一级，就创建哪一级](docs/lesson-33.md)，
-把 PMM、HHDM 与 walker 收敛成通用 4 KiB mapper。
+下一步是 [第 33 课：建立 4 KiB 映射的完整生命周期](docs/lesson-33.md)，
+把 PMM、HHDM 与 walker 收敛成 create、reuse、unmap 和 TLB/ownership 边界。
 
 多页面课程站由 GitHub Actions 自动部署到 [os-lab.pages.yanick.site](https://os-lab.pages.yanick.site/)。本地仍可在 `site/` 中运行 `npm run dev` 预览。
 

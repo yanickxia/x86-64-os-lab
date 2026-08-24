@@ -285,9 +285,9 @@ const lessonMeta = [
     phase: "虚拟内存",
     status: "next",
     summary:
-      "复用已有 parent tables，并在首个缺层处从 PMM 分配、经 HHDM 清零和连接剩余层级，" +
-      "最后发布 4 KiB leaf mapping。",
-    takeaway: "ALLOC → ZERO → LINK → PUBLISH",
+      "把缺层创建、已有路径复用、leaf unmap 与 TLB/ownership 边界放入一个贯穿实验，" +
+      "建立最小 4 KiB mapping lifecycle。",
+    takeaway: "CREATE → REUSE → UNMAP",
   },
 ];
 

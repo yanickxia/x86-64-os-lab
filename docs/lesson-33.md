@@ -1,4 +1,4 @@
-# 第 33 课：缺哪一级，就创建哪一级
+# 第 33 课：建立 4 KiB 映射的完整生命周期
 
 ## 先修知识
 
@@ -11,9 +11,20 @@
 如果 PA、HHDM VA、parent entry 与 leaf PTE 又混在一起，先回看[第 31.5 课](/lessons/lesson-31.5)。
 本课不再重算四个 9-bit index，也不要求记新的 x86 寄存器。
 
-## 本课只引入一个机制
+## 本章建立的完整能力
 
-实现一个会补齐缺失 parent tables 的 4 KiB mapper：
+此前课程采用“一课一个机制”，适合隔离启动故障，却把进入 OS 主线后的完整能力切得过碎。
+从本章开始，每章围绕一个可独立使用的 OS 能力，组合 2–4 个强相关机制，
+再用一个贯穿实验证明它们如何协作。
+
+本章把第 26–32 课的零件收敛成一段最小 **mapping lifecycle**：
+
+1. **create**：parent 缺失时分配、清零并安全发布 table pages；
+2. **reuse**：相邻 VA 已有 parent path 时只填写新 leaf，不重复分配 tables；
+3. **unmap**：清除一个 leaf 并返回原 mapping，但不伪装成已经回收 frame；
+4. **policy boundary**：由 caller 决定何时 `INVLPG`、何时归还 data/table frames。
+
+创建或复用 mapping 的入口是：
 
 ```c
 bool vmm_map_page_4k(struct pmm_allocator *allocator,
@@ -22,6 +33,15 @@ bool vmm_map_page_4k(struct pmm_allocator *allocator,
                      uint64_t virtual_address,
                      uint64_t physical_address,
                      struct vmm_map_result *result);
+```
+
+撤销 leaf mapping 的入口是：
+
+```c
+bool vmm_unmap_page_4k(uint64_t root_physical_address,
+                       uint64_t hhdm_offset,
+                       uint64_t virtual_address,
+                       struct vmm_unmap_result *result);
 ```
 
 给定一个已经存在的 PML4 root、目标 VA 和已经由 caller 持有的 data-frame PA，它会：
@@ -34,6 +54,10 @@ bool vmm_map_page_4k(struct pmm_allocator *allocator,
 - 返回真实 PTE pointer 和本次新分配的 table 数量。
 
 它不会分配 data frame，不会覆盖已有 leaf，也不负责 `INVLPG`。
+
+unmap 只解除 VA → PA 的翻译关系，返回被移除的 PA 与完整旧 PTE；它暂时不回收 data frame，
+也不递归释放已经变空的 PT/PD/PDPT。这些动作需要 PMM `free()` 与 page-table lifetime policy，
+不能靠清零一个 PTE 冒充完成。
 
 ## 1. 第 32 课为什么还不够
 
@@ -181,7 +205,7 @@ old VA          = 0x0000123456789000
 PML4 index      = 0x24
 ```
 
-本课目标只把 PML4 index 加一，低三级 index 保持相同：
+第一个新目标只把 PML4 index 加一，低三级 index 保持相同：
 
 ```text
 new VA          = 0x000012b456789000
@@ -193,14 +217,29 @@ PML4[0x25]      = 0 before mapping
 脚手架先单独分配并清零 data frame，再调用 mapper。由于 `PML4[0x25] == 0`，
 本次 mapper 必须创建 PDPT、PD、PT 三张 table pages。
 
-绿灯 observer 会检查四类证据：
+紧接着，脚手架映射相邻的第二页：
+
+```text
+reuse VA        = 0x000012b45678a000
+PML4/PDPT/PD    = 与第一张新 mapping 完全相同
+PT index        = 0x18a
+新增 tables     = 0
+```
+
+这一步不只是“再调用一次”。它证明 mapper 能分辨两种状态：第一个地址需要创建 parent path；
+相邻地址已经到达同一个 PT，只需占用另一个 leaf slot。随后 unmap 只清除第二个 leaf，
+第一条 mapping 和三张 parent tables 必须继续存在。
+
+绿灯 observer 会检查五类证据：
 
 1. PMM 的 `free_pages` 恰好减少 3；
 2. result 报告 `allocated_table_count == 3`；
 3. 第 32 课 walker 能从 active root 找到 mapper 返回的同一个 PTE pointer；
-4. 通过 new VA 写入 marker 后，data frame 的 HHDM alias 读到相同值。
+4. 通过两个 VA 写入不同 marker 后，各自 data frame 的 HHDM alias 读到对应值；
+5. unmap 第二页后 leaf 变成 0，但 `free_pages` 不变，第一条 mapping 仍保留。
 
-前三项证明数据结构与 ownership；第四项证明 active MMU 真正消费了新路径。
+前三项证明数据结构与 ownership；第四项证明 active MMU 真正消费了新路径；
+第五项区分 mapping state 与 frame ownership。
 
 ## 8. mapper 为什么不执行 `INVLPG`
 
@@ -216,9 +255,30 @@ mapper 只修改 page-table 数据结构。它不知道 caller 是在：
 
 这与第 29 课不加载 `CR3`、第 32 课不修改 PTE 是同一种分层：底层 helper 只承诺它真正拥有的职责。
 
-## 9. 红灯为什么安全
+## 9. unmap 为什么不等于 free
 
-当前 `kernel/vmm_mapper.c` 中的 `vmm_map_page_4k()` 固定返回 `false`。observer 会打印：
+一次成功 unmap 至少涉及三个彼此独立的状态：
+
+```text
+page table：leaf PTE 从 PRESENT entry 变成 0
+TLB：CPU 可能仍缓存旧 translation，需要 caller 失效
+PMM：data frame 仍然是 kernel-owned，尚未回到 free pool
+```
+
+本章的 `vmm_unmap_page_4k()` 只完成第一行，并把旧 PTE 与 PA 返回给 caller。runtime observer 随后执行 `INVLPG`；
+未来拥有 `pmm_free_page()` 后，caller 才能根据用途决定归还 data frame。
+三张 parent tables 即使暂时全空也继续存在，
+因为安全回收它们需要判断整张表是否为空、处理共享关系并维护 address-space lifetime。
+
+这种分层避免两个危险误解：
+
+- PTE 已清零，不代表 frame 已经无人拥有；
+- `free_pages` 未增加，不代表 unmap 失败，它只说明本章没有伪造 PMM 回收。
+
+## 10. 红灯为什么安全
+
+当前 `kernel/vmm_mapper.c` 中的 `vmm_map_page_4k()` 和 `vmm_unmap_page_4k()` 都固定返回 `false`。
+第一个 TODO 尚未完成时，observer 会打印：
 
 ```text
 VMM:MAP4K:RED
@@ -229,10 +289,11 @@ VMM:MAP4K:RED
 
 ## 实验前预测
 
-第一次运行 `make check-vmm-mapper` 前，只回答这一题：
+第一次运行 `make check-vmm-mapper` 前，只回答下面两题：
 
-> root 已存在，data frame 已由脚手架单独分配，而 `PML4[0x25] == 0`。
-> mapper 还要从 PMM 分配几张 page-table pages？分别充当哪一级？为什么不是四张？
+1. root 与两个 data frames 都由 caller 提供。第一次映射遇到 `PML4[0x25] == 0`，第二次映射相邻 VA。
+   两次 `allocated_table_count` 分别是多少？新 frames 各充当哪一级？
+2. 第二页 unmap 后，它的 leaf、三张 parent tables、data frame ownership 和 `free_pages` 应分别处于什么状态？
 
 不需要预测 PA、`free_pages` 或 marker 的精确数值。
 
@@ -245,9 +306,18 @@ make check-vmm-mapper
 预期看到：
 
 ```text
-4 KiB mapper check: reusable mapper is incomplete
+4 KiB mapping lifecycle check: path creation is incomplete
 4 KiB mapper check: complete vmm_map_page_4k() in kernel/vmm_mapper.c
 ```
+
+完成 create/reuse 后，checker 会进入同一实验的下一阶段；若 unmap 仍是 TODO，会改为提示：
+
+```text
+4 KiB mapping lifecycle check: leaf removal is incomplete
+4 KiB mapper check: complete vmm_unmap_page_4k() in kernel/vmm_mapper.c
+```
+
+这不是另开一个实验，而是同一 lifecycle 的分阶段诊断：先保证 mapping 能建立并复用，再验证撤销边界。
 
 查看 API、TODO 和 runtime observer：
 
@@ -257,7 +327,11 @@ make inspect-vmm-mapper
 
 ## 练习
 
-只修改 `kernel/vmm_mapper.c` 中的 `vmm_map_page_4k()`。按下面状态机实现：
+只修改 `kernel/vmm_mapper.c`，分两段完成同一个 lifecycle。
+
+### A. `vmm_map_page_4k()`：create + reuse
+
+按下面状态机实现：
 
 1. 验证所有 pointers、root/data PA 格式以及 VA 4 KiB 对齐；失败时不修改 `result`。
 2. 通过 HHDM 访问 root，沿 PML4E、PDPTE、PDE 查找第一个 zero parent。
@@ -272,6 +346,14 @@ make inspect-vmm-mapper
 ```c
 VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE
 ```
+
+### B. `vmm_unmap_page_4k()`：remove leaf
+
+1. 验证 result、root PA 和 page-aligned VA，失败时不修改 `result`。
+2. 复用 `vmm_walk_to_pte()` 找到 leaf pointer；parent 缺失或 leaf 非 `PRESENT` 时失败。
+3. 先保存完整 old PTE，并用 `VMM_PAGE_ADDRESS_MASK` 提取 data-frame PA。
+4. 只把 leaf 写成 0；不要改 parent entries，不调用 PMM，也不执行 `INVLPG`。
+5. leaf 清除成功后，最后一次性发布 `physical_address` 和 `old_pte`。
 
 如果需要提示，按层次展开：
 
@@ -299,6 +381,14 @@ VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE
 
 </details>
 
+<details>
+<summary>提示 4：unmap 为什么返回完整 old PTE</summary>
+
+真实访问后 CPU 可能已经写入 Accessed/Dirty bits。返回完整 old PTE 让上层保留全部旧状态；
+同时返回 mask 后的 PA，避免 caller 把 flags 当成 physical-address bits。
+
+</details>
+
 ## 绿灯取证
 
 完成后再次运行：
@@ -311,9 +401,11 @@ make check-vmm-mapper
 
 ```text
 vmm mapper pure-C checks passed
-4 KiB mapper check passed: an empty PML4 slot gained three table frames
+4 KiB mapping lifecycle check passed: create, reuse, and unmap agree
 4 KiB mapper mapping: VA=..., PA=..., PTE=...
 4 KiB mapper ownership: table pages=0x3, free=...->...
+4 KiB mapper reuse: VA=..., PA=..., table pages=0x0
+4 KiB mapper unmap: old PTE=..., leaf after=0x0, free unchanged=...
 ```
 
 observer 真正通过 new VA 写入以后，CPU 可以把 Accessed/Dirty bits 写回 leaf，
@@ -321,33 +413,37 @@ observer 真正通过 new VA 写入以后，CPU 可以把 Accessed/Dirty bits �
 checker 只比较 target PA 与必需的 `PRESENT|WRITABLE`。
 
 纯 C checks 还会验证：已有 parent path 分配 0 张、只缺 PT 时分配 1 张、
-occupied leaf、huge leaf 与只读 parent 被拒绝、分配中途失败不会发布不完整 parent。
+occupied leaf、huge leaf 与只读 parent 被拒绝、分配中途失败不会发布不完整 parent；
+unmap 还会覆盖成功移除、重复移除、非法输入和 output 不变合同。
 
-## 唯一新增的解释题
+## 两个解释题
 
-在 `notes/note-33.md` 用一小段话说明：
+在 `notes/note-33.md` 分别用一小段话说明：
 
-> 为什么必须先清零并连接全部 child tables，最后才把第一个缺失 parent 写成 `PRESENT=1`？
-> 如果顺序反过来，CPU 可能观察到什么？
+1. 为什么必须先清零并连接全部 child tables，最后才把第一个缺失 parent 写成 `PRESENT=1`？
+   如果顺序反过来，CPU 可能观察到什么？
+2. 为什么 unmap 后 checker 要求 leaf 为 0，却要求 `free_pages` 保持不变？
+   为什么 `INVLPG` 属于 caller 而不是 helper？
 
 不用重复解释四级 index、HHDM 公式或 `uint64_t **`。
 
 ## 本课边界与下一步
 
-完成本课后，kernel 拥有第一个可复用的 4 KiB mapper，但仍然没有：
+完成本章后，kernel 拥有 create、reuse、unmap 三段最小 4 KiB mapping lifecycle，但仍然没有：
 
-- unmap 与 physical-frame 回收；
+- physical-frame free API；
 - page-table page 的引用计数和空表回收；
 - user/supervisor、NX、global 等正式权限 policy；
 - 多 CPU page-table lock 与 TLB shootdown；
 - 每个 process 独立 address space。
 
-下一阶段会先补齐 mapping 权限与 unmap 边界，
-再把 address space 从 bootstrap 实验对象推进到可以承载用户进程的内核抽象。
+下一章会把 user/supervisor、writable、NX、guard page 与 fault evidence 合成“权限和隔离”；
+再下一章处理 address-space ownership、共享 kernel region 与销毁回收。
 
 ## 完成标准
 
 - 保留实验前预测，并在绿灯后写预测修订。
 - `make check-vmm-mapper` 通过，第 29–32 课检查继续通过。
-- 能区分 caller 提供的 data frame 与 mapper 分配的 table frames。
+- 能区分 caller 提供的 data frame、mapper 分配的 table frames 与 unmap 后仍未释放的 ownership。
 - 能解释“初始化 child → 最后发布 PRESENT parent”这一核心不变量。
+- 能解释 leaf、TLB 与 PMM 是三个不同状态，unmap 不能同时假装完成全部回收。

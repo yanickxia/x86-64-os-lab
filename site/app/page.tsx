@@ -100,7 +100,7 @@ export default function Home() {
         </div>
         <div className="method-list">
           <article><span>01</span><h3>先写预测</h3><p>把直觉暴露出来，错误才有学习价值。</p></article>
-          <article><span>02</span><h3>最小改动</h3><p>一次只引入一个机制，控制变量。</p></article>
+          <article><span>02</span><h3>完整能力</h3><p>每章组合少量强相关机制，用一个实验贯穿。</p></article>
           <article><span>03</span><h3>机器取证</h3><p>用 GDB、原始字节和测试验证，而非只看表象。</p></article>
           <article><span>04</span><h3>留下解释</h3><p>记录控制流、不变量和失败原因。</p></article>
         </div>

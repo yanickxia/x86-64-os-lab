@@ -19,9 +19,37 @@
 第 30 课以 shallow root clone 暂时借用 Limine 的 live subtrees，保留 custom slot 后切换 CR3，
 把“数据结构正确”和“CPU 已安全使用”分开验证；第 31 课再让一次 non-present write
 经 `#PF → publish PTE → INVLPG → IRETQ` 恢复，建立按需映射的最小闭环。
-第 32 课把固定 path 收敛为从 root PA 与 VA
-定位 leaf slot 的只读 software walker；第 33 课加入缺层分配、HHDM 清零和延迟发布，形成通用 4 KiB mapper，
-随后再补权限、unmap 与独立 address space。
+第 32 课把固定 path 收敛为从 root PA 与 VA 定位 leaf slot 的只读 software walker；
+第 33 课把 create、reuse、unmap 和 TLB/ownership 边界放进同一个 4 KiB mapping lifecycle，
+由此切换到更完整的 OS 能力章。
+
+## 第 33 课起的章节粒度
+
+启动阶段按单一机制拆课，是为了让模式切换、地址计算和指令错误能够独立归因。
+进入 OS 主线后继续这样切，会让 allocator、VMM、process 和 filesystem 被拆成彼此失去上下文的 helper。
+后续采用下面的平衡：
+
+- 每章围绕一个可以说清输入、状态转换和职责边界的 **完整 OS 能力**；
+- 一章组合 2–4 个强相关机制，用一个贯穿实验串起来，不把每个 helper 单独变成一课；
+- 目标用时 90–150 分钟，只有超过 150 分钟、故障无法归因或机制不属于同一闭环时才拆分；
+- 每章只有一个主要验收命令，内部可以分阶段报错；
+  实验前预测和实验后解释合计只保留真正新增的 2–3 项；
+- 已完成的第 0–32 课保留原编号和学习记录，不为了形式统一重写历史。
+
+后续主线暂按以下整合章推进，实际仍会根据学习反馈调整：
+
+| 章 | 完整能力 | 放在同一章中的机制 | 贯穿结果 |
+| --- | --- | --- | --- |
+| 33 | 4 KiB mapping lifecycle | 缺层创建、已有路径复用、leaf unmap、TLB/ownership 边界 | 两页 map 后撤销一页 |
+| 34 | 页权限与隔离 | supervisor/user、writable、NX、guard page、fault evidence | 错误访问按 policy 被拒绝 |
+| 35 | address-space lifecycle | root ownership、kernel 共享区、user 私有区、销毁回收 | 创建并销毁地址空间 |
+| 36 | 第一个用户程序 | ELF segments、user stack、ring 3 entry、退出路径 | 用户代码运行并安全返回内核 |
+| 37 | syscall boundary | entry/return、参数 ABI、用户指针验证、copyin/copyout | 用户程序通过 syscall 输出 |
+| 38 | process lifecycle | process state、fork/exec/wait、资源 ownership | 父子进程完成最小闭环 |
+| 39 | 抢占与阻塞 | timer、context switch、run queue、sleep/wakeup | 两个任务可抢占且可阻塞唤醒 |
+| 40 | 并发正确性 | interrupt discipline、spinlock、condition wait、压力测试 | 共享状态在竞争下保持不变量 |
+| 41 | Unix I/O 抽象 | fd table、file object、pipe、统一 read/write | shell 风格管道传递数据 |
+| 42 | 持久化文件系统 | block cache、inode/directory、路径查找、崩溃边界 | 文件跨重启保留并可校验 |
 
 默认节奏是每周 6-8 小时，共约 20-24 周。实际进度以“能证明掌握”为准，不追赶日历。
 

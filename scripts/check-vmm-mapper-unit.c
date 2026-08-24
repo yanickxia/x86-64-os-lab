@@ -73,6 +73,17 @@ static struct vmm_map_result sentinel_result(void) {
     };
 }
 
+static bool unmap_result_unchanged(const struct vmm_unmap_result *result) {
+    return result->physical_address == UINT64_C(0x1234) && result->old_pte == UINT64_C(0x55);
+}
+
+static struct vmm_unmap_result sentinel_unmap_result(void) {
+    return (struct vmm_unmap_result){
+        .physical_address = UINT64_C(0x1234),
+        .old_pte = UINT64_C(0x55),
+    };
+}
+
 int main(void) {
     const uint64_t hhdm_offset = (uint64_t)(uintptr_t)&tables[0][0];
     const uint64_t flags = VMM_PAGE_PRESENT | VMM_PAGE_WRITABLE;
@@ -95,6 +106,23 @@ int main(void) {
         result.allocated_table_count != 0 || result.pte != &tables[3][VMM_PT_INDEX(adjacent_va)] ||
         *result.pte != ((DATA_PA + VMM_PAGE_SIZE) | flags) || allocator.free_pages != free_before_reuse) {
         fputs("vmm mapper validation: an existing parent path was not reused\n", stderr);
+        return 1;
+    }
+
+    const uint64_t adjacent_pte = *result.pte;
+    const uint64_t free_before_unmap = allocator.free_pages;
+    struct vmm_unmap_result unmap_result = sentinel_unmap_result();
+    if (!vmm_unmap_page_4k(0, hhdm_offset, adjacent_va, &unmap_result) ||
+        unmap_result.physical_address != DATA_PA + VMM_PAGE_SIZE || unmap_result.old_pte != adjacent_pte ||
+        *result.pte != 0 || allocator.free_pages != free_before_unmap) {
+        fputs("vmm mapper validation: unmap did not remove exactly one leaf\n", stderr);
+        return 1;
+    }
+
+    unmap_result = sentinel_unmap_result();
+    if (vmm_unmap_page_4k(0, hhdm_offset, adjacent_va, &unmap_result) ||
+        !unmap_result_unchanged(&unmap_result)) {
+        fputs("vmm mapper validation: an empty leaf was unmapped twice\n", stderr);
         return 1;
     }
 
@@ -157,6 +185,15 @@ int main(void) {
         vmm_map_page_4k(&allocator, 0, hhdm_offset, TARGET_VA, DATA_PA + 1, &result) ||
         vmm_map_page_4k(&allocator, 0, hhdm_offset, TARGET_VA, DATA_PA, NULL) || !result_unchanged(&result)) {
         fputs("vmm mapper validation: invalid input was accepted or changed the result\n", stderr);
+        return 1;
+    }
+
+    unmap_result = sentinel_unmap_result();
+    if (vmm_unmap_page_4k(1, hhdm_offset, TARGET_VA, &unmap_result) ||
+        vmm_unmap_page_4k(0, hhdm_offset, TARGET_VA, &unmap_result) ||
+        vmm_unmap_page_4k(0, hhdm_offset, TARGET_VA + 1, &unmap_result) ||
+        vmm_unmap_page_4k(0, hhdm_offset, TARGET_VA, NULL) || !unmap_result_unchanged(&unmap_result)) {
+        fputs("vmm mapper validation: invalid unmap input was accepted or changed the result\n", stderr);
         return 1;
     }
 

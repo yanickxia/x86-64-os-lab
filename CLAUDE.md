@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. 搭脚手架    docs/lesson-NN.md + notes/note-NN.md + scripts/check-*.zsh + Makefile 目标
 2. 制造红灯    在本课练习文件留最小占位或 TODO，先自己验证 check 脚本确实因“缺少本课机制”而失败
 3. 自测绿灯    临时写出正确实现，确认脚本能通过、且旧课测试全部回归通过，然后把实现撤回成红灯
-4. 交给用户    只给问题和最小提示；用户填“实验前预测”→ 改 boot.asm → 跑到绿灯
+4. 交给用户    只给问题和最小提示；用户填“实验前预测”→ 完成章内 TODO → 跑到绿灯
 5. 批改        代码过了不等于结课。逐条核对 notes/ 里的每个答案
 6. 结课        全部通过 → 更新 site 的 lessonMeta → 跑全量回归 → git commit
 ```
@@ -41,11 +41,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 不为单纯的 instruction encoding、寄存器位或工具字段各开一课，除非它直接影响 OS 机制或正在诊断真实故障。
 - 主线课优先覆盖 C 内核、异常、内存管理、用户态、进程/调度、并发与文件系统。
 - bridge 章节可保留深入正文作为参考，但必做结论最多 3–4 条，并由自动化检查验收。
+- 第 33 课起使用“整合章”：围绕一个可独立使用的 OS 能力组合 2–4 个强相关机制，
+  用一个贯穿实验串起输入、状态转换、失败边界和机器证据，不再为每个 helper 单独开课。
 
 ## 课程规则（来自 README，写代码前必须满足）
 
-- 每课只引入一个主要机制。
-- 每课在练习前列出先修知识，并讲清本课新增的最小语法与机器模型。
+- 启动基础允许按单一机器机制拆分；进入 OS 主线后，每章围绕一个完整能力组合 2–4 个强相关机制。
+- 整合章预计 90–150 分钟，只保留一个主要 checker 和最多 2–3 个必答项。
+- 只有机制不属于同一状态闭环、红灯无法清楚归因、或预计超过 150 分钟时才继续拆章；
+  不能仅因新增了一个 helper 就拆课。
+- 每章在练习前列出先修知识，并讲清新增语法、状态边界与各机制如何协作。
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
 - 首次出现的术语或测试机制必须先定义角色和边界：谁产生、谁消费、谁观察、它属于硬件/标准协议还是课程测试基础设施，以及“出现/不出现”分别能证明和不能证明什么。尤其不能直接使用 acknowledgement/ack、handshake、magic、producer/consumer 等词而只给结果值。
 - 写代码前先预测机器状态和输出。
@@ -99,7 +104,7 @@ make check-kernel-page-table # 四个 kernel-owned frames → 一条未激活的
 make check-kernel-address-space # shallow-copy live root entries → 加载 kernel-owned CR3
 make check-demand-page # #PF 发布一个预留 frame 的 PTE，INVLPG 后 IRETQ 重试原 store
 make check-page-table-walk # 从 active root PA 与 VA 软件遍历到 mapped/empty leaf PTE
-make check-vmm-mapper # 缺失 parent 时分配、清零、连接 table pages，再发布 4 KiB mapping
+make check-vmm-mapper # 创建缺失 path、复用已有 path、撤销 leaf，并区分 TLB/PMM 边界
 ```
 
 结课前跑全部 `check-*`，不能只跑本课那一个。
@@ -126,7 +131,7 @@ make inspect-kernel-page-table # 查看第 29 课 VMM API、四级 index/entry �
 make inspect-kernel-address-space # 查看第 30 课 root clone API 与 CR3 bridge
 make inspect-demand-page # 查看第 31 课 demand-write policy、异常返回桥与 INVLPG/IRETQ
 make inspect-page-table-walk # 查看第 32 课 walker API、runtime observer 与 linked symbol
-make inspect-vmm-mapper # 查看第 33 课 allocating mapper API、ownership observer 与 linked symbol
+make inspect-vmm-mapper # 查看第 33 课 create/reuse/unmap API、ownership observer 与 linked symbols
 make qemu-reset          # 终端 A：QEMU 停在第一条指令前
 make inspect-reset       # 终端 B：GDB 连上去读复位状态
 make qemu-boot           # 终端 A：停在 reset，配合 inspect-boot
@@ -215,7 +220,10 @@ npm run lint
 
 ### docs/ 与 notes/ 成对，结构固定
 
-`docs/lesson-NN.md`：`# 第 N 课：…` → `## 先修知识` → `## 本课只引入一个机制` → 机制正文（含“为什么有这个东西”的历史演化）→ 红灯成因说明（明确先不运行）→ `## 实验前预测` → 实际运行红灯与练习 → 绿灯取证 → `## 观察题` → `## 完成标准`。
+`docs/lesson-NN.md`：`# 第 N 课：…` → `## 先修知识` → `## 本章建立的完整能力`
+→ 2–4 个相关机制及其协作关系 → 红灯成因说明（明确先不运行）→ `## 实验前预测`
+→ 一个贯穿实验 → 绿灯取证 → 最多 2–3 个解释题 → `## 完成标准`。
+启动阶段的已完成旧课可以保留“本课只引入一个机制”，不为格式统一而重写历史学习记录。
 
 引入新机制的实验课使用：`## 实验前预测`（或`实验前计算`）→ `## 红灯` → `## 我的实现` → `## 绿灯原始观察` → `## 预测修订` → `## 我的解释` → `## 课中追问汇总` → `## 仍然不清楚的问题`。预测修订逐条记录“原预测 / 真实结果 / 错误原因”；即使原预测正确，也写明与真实结果一致及其证据。观察题与“我的解释”按编号一一对应。纯总结章可以改用主题式复盘，不设置红灯/绿灯，也不新增验收命令；第 15、16 课都是这个例外，因此两课都没有 `## 先修知识` 与红/绿灯小节。
 
@@ -246,10 +254,10 @@ npm run lint
 
 第 0–32 课已结课。第 24 课完成自制 bootloader 毕业审计，第 25 课完成 Limine 换轨，第 26 课建立最小物理页 allocator，第 27 课通过 HHDM 访问并清零 kernel-owned frame，第 28 课建立 `#PF` 诊断安全网，第 29 课构造第一条 kernel-owned page-table path，第 30 课 shallow-copy active PML4 entries、保留 custom index `0x24`，并通过 CR3 bridge 激活 kernel-owned root。第 31 课完成 `vmm_resolve_demand_write()`：真实路径使用预留 frame，经 `#PF → publish PTE → INVLPG → IRETQ` 重试原 store。第 31.5 课统一 PA、VA、PMM、VMM、PTE 与 HHDM 的地址模型；第 32 课完成 `vmm_walk_to_pte()`，能从 root PA 与任意 VA 经 HHDM 定位 mapped 或 empty leaf slot。旧路径的 CPU 以 `CR4.PAE=1`、`CR3=0x1000`、`EFER.LME=LMA=1`、`CR0.PG=1` 激活 IA-32e mode，并通过 selector `0x18` 的 64 位 code descriptor 在 `0x7d30` 以 `CS64` 执行；新路径由 Limine 直接进入高半 C entry。硬件首次遍历页表后可能更新 Accessed/Dirty 位。
 
-第 33 课脚手架已建立，当前保持红灯：`vmm_map_page_4k()` 需要复用已有 parents，
-在第一个 zero parent 后从 PMM 分配剩余 table frames、经 HHDM 清零、先连接 private child path，
-最后发布 `PRESENT` parent。目标 VA 使用空的 `PML4[0x25]`，绿灯应只分配 PDPT、PD、PT 三张 table pages，
-并由 active VA/HHDM alias 证明最终 mapping。
+第 33 课已重构为第一章整合章，脚手架当前保持红灯。`vmm_map_page_4k()` 先在空 `PML4[0x25]`
+下创建 PDPT、PD、PT，再为相邻 VA 复用同一 parent path；`vmm_unmap_page_4k()` 只移除第二个 leaf，
+返回旧 PTE/PA，不回收 data/table frames，也不替 caller 执行 `INVLPG`。绿灯要同时证明 create 分配 3 张、
+reuse 分配 0 张、两个 VA/HHDM aliases 正确，以及 unmap 后 leaf 为 0 而 PMM `free_pages` 不变。
 
 第 12 课已用 `INT 13h AH=02h` 把 `build/os.img` 的 CHS `0/0/2`（LBA 1）读到 guest 物理地址 `0x10000`，并验证了完整的 `KERNEL64` 标记。
 

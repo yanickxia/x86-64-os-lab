@@ -577,13 +577,13 @@ inspect-page-table-walk: $(LIMINE_KERNEL_ELF)
 	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_walk_to_pte'
 
 inspect-vmm-mapper: $(LIMINE_KERNEL_ELF)
-	@printf '%s\n' '== lesson 33 allocating 4 KiB mapper =='
+	@printf '%s\n' '== lesson 33 create/reuse/unmap lifecycle =='
 	@sed -n '1,220p' kernel/vmm_mapper.h
 	@sed -n '1,300p' kernel/vmm_mapper.c
 	@printf '%s\n' '== runtime ownership and alias observer =='
-	@rg -n -A 90 'struct vmm_map_result mapper_result' kernel/limine_main.c
+	@rg -n -A 240 'struct vmm_map_result mapper_result' kernel/limine_main.c
 	@printf '%s\n' '== linked mapper symbol =='
-	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_map_page_4k'
+	@x86_64-elf-nm -n $(LIMINE_KERNEL_ELF) | rg 'vmm_(map|unmap)_page_4k'
 
 check-limine-handoff: $(LIMINE_IMAGE)
 	@test -f $(OVMF_CODE)

@@ -12,6 +12,12 @@ struct vmm_map_result {
     uint64_t allocated_table_count;
 };
 
+/* The leaf that was removed; ownership of its data frame stays with caller. */
+struct vmm_unmap_result {
+    uint64_t physical_address;
+    uint64_t old_pte;
+};
+
 /*
  * Map one aligned virtual page in an existing address-space root.
  *
@@ -25,5 +31,14 @@ bool vmm_map_page_4k(struct pmm_allocator *allocator,
                      uint64_t virtual_address,
                      uint64_t physical_address,
                      struct vmm_map_result *result);
+
+/*
+ * Remove one existing 4 KiB leaf mapping without freeing either its data frame
+ * or now-empty parent table frames. TLB invalidation remains caller policy.
+ */
+bool vmm_unmap_page_4k(uint64_t root_physical_address,
+                       uint64_t hhdm_offset,
+                       uint64_t virtual_address,
+                       struct vmm_unmap_result *result);
 
 #endif
