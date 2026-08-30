@@ -372,7 +372,7 @@ VMM:BUILD:OK
 
 ## 实验前预测
 
-先把答案写进 `notes/note-30.md`，错误预测不要覆盖。
+先把答案写进 `notes/06-Limine与内核主线/note-30.md`，错误预测不要覆盖。
 
 ### 1. 三个 PML4 indices
 
@@ -512,7 +512,7 @@ checker 还会在 host 上直接调用同一个纯 C helper，验证：
 
 ## 预测修订
 
-在 `notes/note-30.md` 中逐项写：
+在 `notes/06-Limine与内核主线/note-30.md` 中逐项写：
 
 ```text
 原预测 → 真实结果 → 错误原因或一致证据

@@ -296,7 +296,9 @@ relative displacement 只取决于两个位置之间的距离。整段代码从�
 
 ## 实验前推演
 
-现在已经读完 linker、VMA/LMA、objcopy 文件布局和红灯成因。回到前面的“稍后要回答的问题”，在第一次运行 `make check-kernel-elf` 前把“输入 → 结论”写入 `notes/note-14.md`；错误推演原样保留。
+现在已经读完 linker、VMA/LMA、objcopy 文件布局和红灯成因。回到前面的“稍后要回答的问题”，
+在第一次运行 `make check-kernel-elf` 前把“输入 → 结论”写入 `notes/03-加载交接与ELF/note-14.md`；
+错误推演原样保留。
 
 ## 6. 运行真实红灯
 

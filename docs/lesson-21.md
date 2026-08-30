@@ -168,7 +168,8 @@ jmp .done
 
 ## 实验前预测
 
-现在已经读完 stage 分工、地址布局、加载/执行证据与当前红灯。在第一次运行 `make check-stage2-handoff` 前，把答案写入 `notes/note-21.md`：
+现在已经读完 stage 分工、地址布局、加载/执行证据与当前红灯。
+在第一次运行 `make check-stage2-handoff` 前，把答案写入 `notes/05-C内核与Bootloader毕业/note-21.md`：
 
 1. `stage2.bin` 的镜像起止 offset 和 guest physical 起止地址分别是什么？尾部 `S2TAIL!!` 的 guest physical 起点是多少？
 2. 红灯中 `0x8000`、`0x83f8`、`0x7000` 三处分别应是什么状态？每处能证明什么、不能证明什么？

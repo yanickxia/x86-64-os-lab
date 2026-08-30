@@ -39,7 +39,7 @@ compiler target:          x86_64-elf
 
 ## 第一个练习
 
-不要搜索答案，先在 `notes/note-00.md` 中用自己的话回答：
+不要搜索答案，先在 `notes/01-从复位到程序控制流/note-00.md` 中用自己的话回答：
 
 1. `uname -m` 和 `x86_64-elf-gcc -dumpmachine` 分别描述谁？
 2. 为什么 Rosetta 不能代替 `qemu-system-x86_64` 来启动我们将写的内核？

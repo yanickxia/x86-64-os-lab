@@ -157,7 +157,7 @@ synthetic report 不是伪造绿灯，而是 red-phase guard：它只决定是�
 
 ## 实验前预测
 
-先在 `notes/note-31.md` 只回答这一题：
+先在 `notes/06-Limine与内核主线/note-31.md` 只回答这一题：
 
 > handler 补上 PTE 后原样返回，没有修改 saved `RIP`。触发 fault 的 store 会被跳过，还是会被重新执行？为什么？
 
@@ -239,7 +239,7 @@ DEMAND:TRIGGER
 
 ## 唯一新增的解释题
 
-在 `notes/note-31.md` 用一小段话说明：
+在 `notes/06-Limine与内核主线/note-31.md` 用一小段话说明：
 
 > 为什么第 19 课需要推进 `UD2` 的 saved `RIP`，本课却必须保留 faulting store 的 saved `RIP`？PTE 与 `INVLPG` 分别修复了什么？
 

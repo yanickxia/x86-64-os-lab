@@ -363,7 +363,8 @@ C 按合同拒绝 count=0
 
 ## 实验前预测
 
-现在已经读完 E820 loop、header layout、ABI 路径和红灯成因。在第一次运行 `make check-e820-boot-info` 前，把答案写入 `notes/note-22.md`。
+现在已经读完 E820 loop、header layout、ABI 路径和红灯成因。
+在第一次运行 `make check-e820-boot-info` 前，把答案写入 `notes/05-C内核与Bootloader毕业/note-22.md`。
 
 ### 输入 A：header bytes
 

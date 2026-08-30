@@ -429,7 +429,7 @@ free_after == free_before - 2
 make check-physical-pages
 ```
 
-把原始输出复制到 `notes/note-26.md`。预期失败只应位于：
+把原始输出复制到 `notes/06-Limine与内核主线/note-26.md`。预期失败只应位于：
 
 ```text
 memory map accepted
@@ -573,4 +573,4 @@ xv6 的 `kalloc()` 最终也是在做 physical page ownership 转换，只是 xv
 - `pmm_alloc_page()` 能跨 entries 分配，不重复返回同一 frame。
 - 能解释为什么 PA 0 可能有效、为什么 API 不能用 0 表示失败。
 - `make check-physical-pages` 与 `make check-limine-handoff` 都通过。
-- `notes/note-26.md` 的预测、原始输出和五个观察题完整。
+- `notes/06-Limine与内核主线/note-26.md` 的预测、原始输出和五个观察题完整。

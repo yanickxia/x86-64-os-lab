@@ -300,7 +300,7 @@ PF:DIAG:OK         仍出现
 
 ## 实验前预测
 
-先填写 `notes/note-29.md`，不要运行后覆盖原答案。
+先填写 `notes/06-Limine与内核主线/note-29.md`，不要运行后覆盖原答案。
 
 ### 1. 计算四个 indices
 

@@ -418,7 +418,7 @@ unmap 还会覆盖成功移除、重复移除、非法输入和 output 不变合
 
 ## 两个解释题
 
-在 `notes/note-33.md` 分别用一小段话说明：
+在 `notes/06-Limine与内核主线/note-33.md` 分别用一小段话说明：
 
 1. 为什么必须先清零并连接全部 child tables，最后才把第一个缺失 parent 写成 `PRESENT=1`？
    如果顺序反过来，CPU 可能观察到什么？

@@ -391,7 +391,7 @@ HHDM:PAGE:OK          不出现
 
 ## 实验前预测
 
-先在 `notes/note-27.md` 填写，不要运行后覆盖原答案。
+先在 `notes/06-Limine与内核主线/note-27.md` 填写，不要运行后覆盖原答案。
 
 ### 1. 给定地址计算
 
@@ -578,4 +578,5 @@ contents：frame 中的 bytes 是否已初始化？  当前 owner 回答
 - `hhdm_prepare_page()` 检查参数、对齐和 overflow，不写死 offset。
 - 准确清零 512 个 64-bit words，并通过 output parameter 返回 VA。
 - `make check-hhdm-page`、`make check-physical-pages` 与 `make check-limine-handoff` 通过。
-- `notes/note-27.md` 保留实验前预测，在“预测修订”中记录认知变化，并完成五个观察题。
+- `notes/06-Limine与内核主线/note-27.md` 保留实验前预测，
+  在“预测修订”中记录认知变化，并完成五个观察题。

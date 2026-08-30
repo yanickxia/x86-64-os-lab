@@ -77,7 +77,8 @@ out immediate_port, al
 
 ## 实验前预测
 
-现在已经读完端口 I/O、寄存器和红灯成因。在第一次运行 `make check-debugcon` 前，把以下预测写入 `notes/note-03.md`：
+现在已经读完端口 I/O、寄存器和红灯成因。在第一次运行 `make check-debugcon` 前，
+把以下预测写入 `notes/01-从复位到程序控制流/note-03.md`：
 
 1. ASCII 字符 `X` 的数值是多少？
 2. `out 0xe9, al` 的数据方向是端口到 CPU，还是 CPU 到端口？

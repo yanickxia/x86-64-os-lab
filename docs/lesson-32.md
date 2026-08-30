@@ -335,7 +335,7 @@ mapped PTE 的完整值可能包含 CPU 更新的 Accessed/Dirty bits，不要�
 
 ## 唯一新增的解释题
 
-在 `notes/note-32.md` 用一小段话说明：
+在 `notes/06-Limine与内核主线/note-32.md` 用一小段话说明：
 
 > 为什么 API 返回 `uint64_t **pte`，而不是只返回当前 entry 的 `uint64_t` 数值？这对后续 mapper 或 page-fault handler 有什么实际用途？
 

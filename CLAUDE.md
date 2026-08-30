@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 每一课严格按这个顺序走：
 
 ```text
-1. 搭脚手架    docs/lesson-NN.md + notes/note-NN.md + scripts/check-*.zsh + Makefile 目标
+1. 搭脚手架    docs/lesson-NN.md + notes/<Section>/note-NN.md + scripts/check-*.zsh + Makefile 目标
 2. 制造红灯    在本课练习文件留最小占位或 TODO，先自己验证 check 脚本确实因“缺少本课机制”而失败
 3. 自测绿灯    临时写出正确实现，确认脚本能通过、且旧课测试全部回归通过，然后把实现撤回成红灯
 4. 交给用户    只给问题和最小提示；用户填“实验前预测”→ 完成章内 TODO → 跑到绿灯
@@ -234,7 +234,12 @@ npm run lint
 
 ### site/：内容从课程仓库单向同步
 
-`site/scripts/sync-content.mjs` 读 `docs/`、`notes/`、`docs/roadmap.md`、`docs/reference/assembly-basics.md` 和 `docs/reference/c-basics.md`，生成 `site/content/course.generated.ts`（生成物，不要手改）。
+`site/scripts/sync-content.mjs` 读 `docs/`、按 Section 分组的 `notes/`、`docs/roadmap.md`、
+`docs/reference/assembly-basics.md` 和 `docs/reference/c-basics.md`，生成 `site/content/course.generated.ts`
+（生成物，不要手改）。
+
+`courseSectionMeta` 同时定义课程站目录和 `notesDirectory`；新增阶段或调整课号范围时只能改这一处。
+新增笔记必须写进其课号所属的 `notes/<Section>/`，不能重新放回 `notes/` 根目录。
 
 **新增一课必须同时在 `sync-content.mjs` 的 `lessonMeta` 数组加一项**（`id`/`slug`/`phase`/`status`/`summary`/`takeaway`），否则新课不会出现在站点上；结课时把 `status` 改成 `completed`。
 
@@ -289,7 +294,10 @@ reuse 分配 0 张、两个 VA/HHDM aliases 正确，以及 unmap 后 leaf 为 0
 
 覆盖第 0–16 课，共 100 分，只保留两部分：A 判断并解释 40 分（A1–A20），B 因果链与诊断 60 分（B1–B6）。不再单独考跨架构迁移或 portable/arch-specific 边界。第一遍不查讲义、不跑命令，保留原始答案；导师审阅后再针对薄弱点取证修正。只写对错不能得满分，不提供答案 key 文件。
 
-第 17 课已按加速轨道结课：第一遍诊断分为 62/100，判断结论大多正确，薄弱点集中在完整因果链。导师已在 `notes/note-17.md` 的“审阅后修正”中补齐 `CALL/RET`、模式切换、五套地址坐标、诊断证据链、triple fault、ELF 偶然可运行及最小 C 环境。该分数只用于定位，不再阻塞 OS 主线。
+第 17 课已按加速轨道结课：第一遍诊断分为 62/100，判断结论大多正确，薄弱点集中在完整因果链。
+导师已在 `notes/04-启动复盘与理解检验/note-17.md` 的“审阅后修正”中补齐 `CALL/RET`、模式切换、
+五套地址坐标、诊断证据链、triple fault、ELF 偶然可运行及最小 C 环境。
+该分数只用于定位，不再阻塞 OS 主线。
 
 第 18 课已结课：汇编入口按 SysV x86-64 ABI 调用 `kernel_main`，C 通过汇编 `debug_putc` 输出字符 `C`，完整输出为 `HelloPTLKC`；调用正常返回后仍停在 `RIP=0x1000e`。反汇编显示 GCC 把函数末尾调用优化成 `mov edi,0x43; jmp debug_putc` 的 tail call。教材同时补齐了 IDT、`.bss` 清零和 stack guard 为什么不阻止极小函数运行、却仍是完整内核环境必需合同。架构胶水、编译选项和单扇区填充不作为记忆题。
 

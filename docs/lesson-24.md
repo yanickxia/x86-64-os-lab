@@ -40,7 +40,8 @@
 make check-bootloader-graduation
 ```
 
-它只复用已经学过的检查，不制造新的测试协议。输出通过后，把四段总结写入 `notes/note-24.md` 即可。
+它只复用已经学过的检查，不制造新的测试协议。
+输出通过后，把四段总结写入 `notes/05-C内核与Bootloader毕业/note-24.md` 即可。
 
 ## 2. 最终控制流：现在到底是谁加载谁
 
@@ -267,7 +268,7 @@ check-exception
 
 ## 9. 学习记录
 
-在 `notes/note-24.md` 写四段即可：
+在 `notes/05-C内核与Bootloader毕业/note-24.md` 写四段即可：
 
 1. stage 1 → stage 2 → kernel 的职责边界。
 2. 最终 handoff：CPU 状态、`RDI`、ELF entry、`.bss` 和 stack。

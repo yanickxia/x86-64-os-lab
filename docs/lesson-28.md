@@ -262,7 +262,7 @@ PF:DIAG:OK        不出现
 
 ## 实验前预测
 
-先填写 `notes/note-28.md`，不要运行后覆盖原答案。
+先填写 `notes/06-Limine与内核主线/note-28.md`，不要运行后覆盖原答案。
 
 ### 1. 合成 error code 推演
 

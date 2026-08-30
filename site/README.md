@@ -27,11 +27,12 @@ npm run dev
 运行 `npm run dev` 或 `npm run build` 前，站点会自动执行 `scripts/sync-content.mjs`，读取：
 
 - `../docs/lesson-*.md`
-- `../notes/note-*.md`
+- `../notes/<Section>/note-*.md`
 - `../docs/roadmap.md`
 - `../docs/reference/assembly-basics.md`
 
-新增课程后，需要在 `scripts/sync-content.mjs` 的课程元数据中加入一项；正文和笔记依旧直接维护在原 Markdown 文件中。
+新增课程后，需要在 `scripts/sync-content.mjs` 的课程元数据中加入一项；
+同步脚本会根据 `courseSectionMeta` 的课号范围，从对应 `notesDirectory` 读取笔记。
 
 ## 验证
 

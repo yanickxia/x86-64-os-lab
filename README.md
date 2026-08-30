@@ -18,7 +18,8 @@
 - 首次出现的汇编、C 语言或工具语法必须给出可运行示例和权威参考，不能把必要知识藏在练习里。
 - 写代码前先预测机器状态和输出。
 - 每个结论都尽量用 QEMU、GDB、反汇编或测试证明。
-- 课中在聊天侧栏或代码审阅里产生的实质性追问，会在结课时汇总进对应 `notes/note-NN.md`；状态确认、格式问题和重复提问不收录。
+- 课中在聊天侧栏或代码审阅里产生的实质性追问，会在结课时汇总进对应 `notes/<Section>/note-NN.md`；
+  状态确认、格式问题和重复提问不收录。阶段目录见 [`notes/README.md`](notes/README.md)。
 - 我先给问题和最小提示；遇到阻塞再逐级增加提示。
 - 每个里程碑结束时，用自己的话解释控制流和关键不变量，并留下一个干净提交。
 
@@ -30,7 +31,8 @@ cd /Users/yanick/codes/mine/operating-system/x86-64-os-lab
 make check-tools
 ```
 
-然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入 [学习记录](notes/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
+然后阅读 [第 0 课](docs/lesson-00.md)，并把答案写入
+[学习记录](notes/01-从复位到程序控制流/note-00.md)。整体路线见 [课程路线图](docs/roadmap.md)。
 
 当前已完成 [第 32 课：让内核自己找到 leaf PTE](docs/lesson-32.md)：kernel 能从 active root PA 与任意 VA 出发，
 经 HHDM 沿已有 parent path 定位 mapped 或 empty leaf slot。

@@ -513,7 +513,8 @@ physical 0x3000  PD[0]
 
 ## 实验前计算
 
-现在已经学完页表层级、entry 格式、地址拆分和红灯成因。第一次运行 `make check-page-tables` 前，把以下结果写入 `notes/note-10.md`：
+现在已经学完页表层级、entry 格式、地址拆分和红灯成因。第一次运行 `make check-page-tables` 前，
+把以下结果写入 `notes/02-进入x86-64-Long-Mode/note-10.md`：
 
 1. `0x00007c00` 在四级 4 KiB 地址拆分中的 PML4、PDPT、PD、PT index 和 page offset。
 2. `0x00090000` 的四个 index 和 page offset。
@@ -531,7 +532,8 @@ physical 0x3000  PD[0]
 make check-page-tables
 ```
 
-测试应该先证明 debug console 已收到 `HelloPT`，再报告三个期望 entry 与实际零值。把完整错误记入 `notes/note-10.md`。
+测试应该先证明 debug console 已收到 `HelloPT`，再报告三个期望 entry 与实际零值。
+把完整错误记入 `notes/02-进入x86-64-Long-Mode/note-10.md`。
 
 ## 练习
 

@@ -396,7 +396,8 @@ LIMINE:ENTRY
 
 ## 9. 实验前预测
 
-第一次运行 `make check-limine-handoff` 前，根据第 2、3、7、8 节填写 `notes/note-25.md`。所有问题都能直接从当前源码和正文推出。
+第一次运行 `make check-limine-handoff` 前，根据第 2、3、7、8 节填写
+`notes/06-Limine与内核主线/note-25.md`。所有问题都能直接从当前源码和正文推出。
 
 ### 9.1 当前红灯
 

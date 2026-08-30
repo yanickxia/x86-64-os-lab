@@ -143,7 +143,8 @@ BIOS 实际只读取 1 sector
 
 ## 实验前预测
 
-现在已经读完产物大小、地址对应、BIOS 扇区计数和红灯代码。在第一次运行 `make check-multisector-load` 前，把答案写入 `notes/note-20.md`：
+现在已经读完产物大小、地址对应、BIOS 扇区计数和红灯代码。
+在第一次运行 `make check-multisector-load` 前，把答案写入 `notes/05-C内核与Bootloader毕业/note-20.md`：
 
 1. 红灯中的 `AL=1` 会向 RAM 写入多少字节？物理起止地址分别是什么？
 2. 红灯是否仍会输出 `HelloPTLKCUR`？物理地址 `0x107f8` 应是什么状态？分别说明原因。

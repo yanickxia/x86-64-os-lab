@@ -511,7 +511,8 @@ CS =0018 ... CS64
 
 ## 实验前计算
 
-现在已经读完 long-mode 激活顺序、各寄存器位和红灯成因。第一次运行 `make check-long-mode` 前，把以下结果写入 `notes/note-11.md`：
+现在已经读完 long-mode 激活顺序、各寄存器位和红灯成因。第一次运行 `make check-long-mode` 前，
+把以下结果写入 `notes/02-进入x86-64-Long-Mode/note-11.md`：
 
 1. `CR4.PAE` 的 bit 编号与掩码。
 2. PML4 的物理地址，以及加载 CR3 后的期望值。

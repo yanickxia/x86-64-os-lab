@@ -6,6 +6,58 @@ const siteRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const courseRoot = path.resolve(siteRoot, "..");
 const generatedDir = path.join(siteRoot, "content");
 
+const courseSectionMeta = [
+  {
+    id: "01",
+    from: 0,
+    to: 6,
+    notesDirectory: "01-从复位到程序控制流",
+    title: "从复位到程序控制流",
+    description: "建立实验环境，跟随 BIOS 启动，并在实模式中掌握端口、栈、调用与内存遍历。",
+  },
+  {
+    id: "02",
+    from: 7,
+    to: 11,
+    notesDirectory: "02-进入x86-64-Long-Mode",
+    title: "进入 x86-64 Long Mode",
+    description: "跨过 A20、GDT、保护模式和分页，把 CPU 带到可执行 64 位代码的环境。",
+  },
+  {
+    id: "03",
+    from: 12,
+    to: 14,
+    notesDirectory: "03-加载交接与ELF",
+    title: "加载、交接与 ELF",
+    description: "把独立载荷读入内存、移交执行权，并让链接地址与真实运行地址一致。",
+  },
+  {
+    id: "04",
+    from: 15,
+    to: 17,
+    notesDirectory: "04-启动复盘与理解检验",
+    title: "启动复盘与理解检验",
+    description: "串起完整启动路径，对照不同 CPU 架构，并用阶段考试检查因果链是否稳固。",
+  },
+  {
+    id: "05",
+    from: 18,
+    to: 24,
+    notesDirectory: "05-C内核与Bootloader毕业",
+    title: "C 内核与 Bootloader 毕业",
+    description: "建立 C 与异常入口后，补齐多扇区、boot info、ELF 与运行环境合同，再进入 OS 主线。",
+  },
+  {
+    id: "06",
+    from: 25,
+    to: 999,
+    notesDirectory: "06-Limine与内核主线",
+    title: "Limine 与内核主线",
+    description:
+      "把已理解的启动合同迁移到成熟 loader，从物理内存管理开始实现真正的内核资源与隔离机制。",
+  },
+];
+
 const lessonMeta = [
   {
     id: "00",
@@ -299,10 +351,23 @@ async function read(relativePath) {
   return readFile(path.join(courseRoot, relativePath), "utf8");
 }
 
+function notesPathFor(lessonId) {
+  const lessonNumber = Number(lessonId);
+  const section = courseSectionMeta.find(
+    ({ from, to }) => lessonNumber >= from && lessonNumber <= to,
+  );
+
+  if (!section) {
+    throw new Error(`No notes directory covers lesson ${lessonId}`);
+  }
+
+  return path.join("notes", section.notesDirectory, `note-${lessonId}.md`);
+}
+
 const lessons = await Promise.all(
   lessonMeta.map(async (meta) => {
     const markdown = await read(`docs/${meta.slug}.md`);
-    const notes = await read(`notes/note-${meta.id}.md`);
+    const notes = await read(notesPathFor(meta.id));
     return {
       ...meta,
       title: titleFromMarkdown(markdown).replace(/`/g, ""),
@@ -320,6 +385,7 @@ const course = {
   title: "x86-64 OS Field Notes",
   subtitle: "从 CPU 复位到自己的内核",
   completedCount: lessons.filter((lesson) => lesson.status === "completed").length,
+  sections: courseSectionMeta,
   lessons,
   roadmap,
   reference,

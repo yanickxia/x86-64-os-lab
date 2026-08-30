@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 async function getWorker() {
@@ -161,11 +161,37 @@ test("keeps Markdown as the canonical source", async () => {
   );
 
   assert.match(generator, /docs\/\$\{meta\.slug\}\.md/);
-  assert.match(generator, /notes\/note-\$\{meta\.id\}\.md/);
+  assert.match(generator, /notesPathFor\(meta\.id\)/);
+  assert.match(generator, /notesDirectory/);
+  assert.doesNotMatch(generator, /notes\/note-\$\{meta\.id\}\.md/);
   assert.match(generator, /docs\/reference\/assembly-basics\.md/);
   assert.match(generator, /docs\/reference\/c-basics\.md/);
   assert.match(generated, /第 0 课：先认识实验机器/);
   assert.match(generated, /第 6 课：从内存遍历 NUL 结尾的字符串/);
   assert.match(generated, /Freestanding C 与内核代码参考/);
   assert.match(generated, /output parameter 与二级指针/);
+
+  const notesRoot = new URL("../../notes/", import.meta.url);
+  const notesEntries = await readdir(notesRoot, { withFileTypes: true });
+  const sectionDirectories = notesEntries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  assert.deepEqual(sectionDirectories, [
+    "01-从复位到程序控制流",
+    "02-进入x86-64-Long-Mode",
+    "03-加载交接与ELF",
+    "04-启动复盘与理解检验",
+    "05-C内核与Bootloader毕业",
+    "06-Limine与内核主线",
+  ]);
+  assert.equal(notesEntries.filter((entry) => entry.isFile() && /^note-/.test(entry.name)).length, 0);
+
+  let noteCount = 0;
+  for (const directory of sectionDirectories) {
+    const sectionEntries = await readdir(new URL(`${directory}/`, notesRoot), { withFileTypes: true });
+    noteCount += sectionEntries.filter((entry) => entry.isFile() && /^note-.+\.md$/.test(entry.name)).length;
+  }
+  assert.equal(noteCount, 35);
 });

@@ -271,7 +271,9 @@ IDT（Interrupt Descriptor Table）把异常或中断 vector 映射到入口代�
 
 ## 实验前预测
 
-现在已经读完 ABI、栈对齐、freestanding 环境和红灯成因。回到前面的“稍后要回答的问题”，在第一次运行 `make check-c-kernel` 前把答案写入 `notes/note-18.md`；错误预测原样保留。
+现在已经读完 ABI、栈对齐、freestanding 环境和红灯成因。回到前面的“稍后要回答的问题”，
+在第一次运行 `make check-c-kernel` 前把答案写入 `notes/05-C内核与Bootloader毕业/note-18.md`；
+错误预测原样保留。
 
 ## 运行真实红灯
 
